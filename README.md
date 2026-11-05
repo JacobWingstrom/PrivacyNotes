@@ -11,16 +11,27 @@ Everything stays on your device.
 
 Every push to `main` or `hush-notes` rebuilds the app on GitHub Actions and updates the **latest** release.
 
-## Status
+## Features
 
-- [x] Customizable sidebar (reorder, rename, hide, choose start screen)
-- [x] Themes: light, dark, pure black, 12 accent colors + custom, 4 fonts, text size, compact lists
-- [x] Passcode lock with Face ID, auto-lock timer, hide in app switcher
-- [x] Notes: pins, colors, emoji icons, tags, search, sorting, checklists/bullets
-- [ ] Tasks with reminder notifications, Calendar, Home dashboard
-- [ ] Vault, Files, Drawings
-- [ ] Journals, Contacts, Bookmarks
-- [ ] Encrypted backup/restore, alternate app icons
+- **Home**: a dashboard you arrange yourself (quick add, today, next 7 days, pinned, recent, journal streak, stats)
+- **All**: one searchable timeline of everything, filterable by type
+- **Notes**: pins, colors, emoji icons, tags, search, sorting, checklists and bullets
+- **Tasks**: due dates and times, reminders, priorities, repeats, subtasks, lists
+- **Calendar**: month and agenda views of events, tasks and journal entries; event alerts
+- **Journals**: mood, streaks, monthly grouping, optional daily reminder
+- **Drawings**: PencilKit canvas with pens, markers, eraser and ruler
+- **Vault**: separate passcode or Face ID; secure notes, logins (password generator, 60 s clipboard) and photos; AES-256 encrypted
+- **Files**: import from Files or Photos, encrypted at rest, Quick Look preview
+- **Contacts**: private address book with call/message/email buttons and birthday reminders
+- **Bookmarks**: links with tags and favorites, never fetched in the background
+- **Customization**: sidebar order, names and visibility, start screen, Home blocks, 4 themes, 12 accents plus custom, 4 fonts, 6 text sizes, compact lists, 6 app icons, week start, reminder defaults
+- **Privacy**: no network, no accounts, no analytics; app lock with Face ID and auto-lock; app-switcher cover; notification text hiding; data excluded from iCloud backup
+- **Backup**: one password-encrypted `.hushbackup` file; restore merges without deleting
+
+## Good to know
+
+- Your data never leaves the phone, so **make backups** (Settings → Backup & Restore). Deleting the app deletes your data.
+- Vault and Files are encrypted with a key kept in the iPhone Keychain. If you re-sign Hush with a *different* Apple ID in AltStore, that key can become unreachable. Back up first.
 
 ## Build locally (optional, needs a Mac)
 
