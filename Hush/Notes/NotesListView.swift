@@ -11,7 +11,9 @@ struct NotesListView: View {
     @State private var newNote: Note?
 
     private var sorted: [Note] {
-        let base = notes.filter { $0.matches(search) && (tagFilter.map { t in $0.tags.contains(t) } ?? true) }
+        let base = notes.filter { note in
+            note.matches(search) && (tagFilter.map { note.tags.contains($0) } ?? true)
+        }
         switch settings.noteSort {
         case .edited: return base
         case .created: return base.sorted { $0.createdAt > $1.createdAt }
