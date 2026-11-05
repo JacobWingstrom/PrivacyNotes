@@ -4,31 +4,30 @@ import LocalAuthentication
 @Observable
 final class LockManager {
     var isLocked: Bool
+    var vaultUnlocked = false
     @ObservationIgnored private var backgroundedAt: Date?
     @ObservationIgnored private var authenticating = false
 
     init() {
-        isLocked = UserDefaults.standard.bool(forKey: AppSettings.lockEnabledKey) && Passcode.isSet
+        isLocked = UserDefaults.standard.bool(forKey: AppSettings.lockEnabledKey) && Passcode.app.isSet
     }
 
     func didEnterBackground() {
+        vaultUnlocked = false // the Vault always re-locks when you leave the app
         if backgroundedAt == nil { backgroundedAt = Date() }
     }
 
     func didBecomeActive(settings: AppSettings) {
         defer { backgroundedAt = nil }
-        guard settings.lockEnabled, Passcode.isSet, let since = backgroundedAt else { return }
+        guard settings.lockEnabled, Passcode.app.isSet, let since = backgroundedAt else { return }
         if Date().timeIntervalSince(since) >= Double(settings.autoLock.rawValue) {
             isLocked = true
         }
     }
 
-    func lockNow() { isLocked = true }
-
-    func unlock(with code: String) -> Bool {
-        guard Passcode.verify(code) else { return false }
-        isLocked = false
-        return true
+    func lockNow() {
+        vaultUnlocked = false
+        isLocked = true
     }
 
     // MARK: Biometrics
@@ -58,16 +57,19 @@ final class LockManager {
         }
     }
 
-    func unlockWithBiometrics() {
+    func authenticate(reason: String, completion: @escaping (Bool) -> Void) {
         guard !authenticating else { return }
         let ctx = LAContext()
         ctx.localizedFallbackTitle = "Enter Passcode"
-        guard ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil) else { return }
+        guard ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil) else {
+            completion(false)
+            return
+        }
         authenticating = true
-        ctx.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "Unlock Hush") { ok, _ in
+        ctx.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { ok, _ in
             DispatchQueue.main.async {
                 self.authenticating = false
-                if ok { self.isLocked = false }
+                completion(ok)
             }
         }
     }

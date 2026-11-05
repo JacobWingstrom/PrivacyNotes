@@ -70,10 +70,7 @@ struct NoteEditorView: View {
             TextField("work, ideas, personal", text: $tagText)
                 .textInputAutocapitalization(.never)
             Button("Save") {
-                note.tags = tagText.split(separator: ",")
-                    .map { $0.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "#", with: "") }
-                    .filter { !$0.isEmpty }
-                    .reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
+                note.tags = .tags(from: tagText)
             }
             Button("Cancel", role: .cancel) {}
         } message: {

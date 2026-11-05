@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(LockManager.self) private var lock
     @Environment(\.dismiss) private var dismiss
     @State private var settingPasscode = false
+    @State private var settingVaultPasscode = false
 
     var body: some View {
         @Bindable var s = settings
@@ -43,34 +44,50 @@ struct SettingsView: View {
                     Picker("Text Size", selection: $s.textSize) {
                         ForEach(TextSize.allCases) { Text($0.label).tag($0) }
                     }
+                    NavigationLink("App Icon") { AppIconPicker() }
                 }
 
-                Section("Lists") {
+                Section("Layout") {
+                    NavigationLink("Sidebar Sections") { SidebarSettingsView() }
+                    Picker("Open On Launch", selection: $s.startSection) {
+                        ForEach(settings.visibleSections) { Text(settings.title(for: $0)).tag($0) }
+                    }
+                    NavigationLink("Home Dashboard") { HomeCustomizeView() }
                     Toggle("Compact Lists", isOn: $s.compactLists)
-                    Stepper("Preview Lines: \(settings.previewLines)", value: $s.previewLines, in: 0...5)
+                    Stepper("Note Preview Lines: \(settings.previewLines)", value: $s.previewLines, in: 0...5)
                         .disabled(settings.compactLists)
                     Picker("Sort Notes By", selection: $s.noteSort) {
                         ForEach(NoteSort.allCases) { Text($0.label).tag($0) }
                     }
+                    Toggle("Week Starts on Monday", isOn: $s.weekStartsMonday)
+                    Toggle("Show Completed Tasks in All", isOn: $s.showCompletedInAll)
                 }
 
-                Section("Sidebar") {
-                    NavigationLink("Reorder, Rename & Hide Sections") { SidebarSettingsView() }
-                    Picker("Open On Launch", selection: $s.startSection) {
-                        ForEach(settings.visibleSections) { Text(settings.title(for: $0)).tag($0) }
+                Section {
+                    DatePicker("Default Reminder Time",
+                               selection: AppSettings.timeBinding({ settings.defaultReminderMinutes }, { settings.defaultReminderMinutes = $0 }),
+                               displayedComponents: .hourAndMinute)
+                    Toggle("Daily Journal Reminder", isOn: $s.journalReminder)
+                    if settings.journalReminder {
+                        DatePicker("Journal Reminder Time",
+                                   selection: AppSettings.timeBinding({ settings.journalReminderMinutes }, { settings.journalReminderMinutes = $0 }),
+                                   displayedComponents: .hourAndMinute)
                     }
+                    Toggle("Hide Text in Notifications", isOn: $s.hideNotificationText)
+                    Button("Open iPhone Notification Settings") {
+                        if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                    }
+                } header: {
+                    Text("Reminders")
+                } footer: {
+                    Text("The default time is used for all-day tasks, events and birthdays. Hiding text shows only “You have a reminder” on your lock screen.")
                 }
 
                 Section {
                     Toggle("Passcode Lock", isOn: Binding(
                         get: { settings.lockEnabled },
                         set: { on in
-                            if on {
-                                settingPasscode = true
-                            } else {
-                                settings.lockEnabled = false
-                                Passcode.clear()
-                            }
+                            if on { settingPasscode = true } else { settings.lockEnabled = false; Passcode.app.clear() }
                         }
                     ))
                     if settings.lockEnabled {
@@ -84,9 +101,28 @@ struct SettingsView: View {
                     }
                     Toggle("Hide Content in App Switcher", isOn: $s.blurInSwitcher)
                 } header: {
-                    Text("Privacy & Security")
+                    Text("App Lock")
+                }
+
+                Section {
+                    if Passcode.vault.isSet {
+                        Button("Change Vault Passcode") { settingVaultPasscode = true }
+                    }
+                    if lock.biometryAvailable {
+                        Toggle("Unlock Vault with \(lock.biometryName)", isOn: $s.vaultUseBiometrics)
+                    }
+                } header: {
+                    Text("Vault")
                 } footer: {
-                    Text("Hush has no accounts, no analytics and never connects to the internet. Your notes stay on this iPhone.")
+                    Text("The Vault has its own passcode and re-locks whenever you leave it or the app.")
+                }
+
+                Section {
+                    NavigationLink("Backup & Restore") { BackupView() }
+                } header: {
+                    Text("Data")
+                } footer: {
+                    Text("Hush has no accounts, no analytics and never connects to the internet. Your data stays on this iPhone and is left out of iCloud backups, so make your own backups.")
                 }
 
                 Section("About") {
@@ -101,9 +137,12 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $settingPasscode) {
                 PasscodeSetupView { code in
-                    Passcode.set(code)
+                    Passcode.app.set(code)
                     settings.lockEnabled = true
                 }
+            }
+            .sheet(isPresented: $settingVaultPasscode) {
+                PasscodeSetupView(title: "Vault Passcode") { Passcode.vault.set($0) }
             }
         }
     }
@@ -147,9 +186,6 @@ private struct SidebarRow: View {
                 set: { settings.customNames[section.rawValue] = $0.isEmpty ? nil : $0 }
             ))
             .submitLabel(.done)
-            if !section.isReady {
-                Text("Soon").font(.caption2).foregroundStyle(.secondary)
-            }
             Toggle("Show \(section.defaultTitle)", isOn: Binding(
                 get: { !settings.hiddenSections.contains(section) },
                 set: { visible in
@@ -159,5 +195,41 @@ private struct SidebarRow: View {
             ))
             .labelsHidden()
         }
+    }
+}
+
+struct AppIconPicker: View {
+    @State private var current = UIApplication.shared.alternateIconName ?? "AppIcon"
+    private let icons: [(String, String)] = [
+        ("AppIcon", "Ember"), ("AppIcon-Midnight", "Midnight"), ("AppIcon-Forest", "Forest"),
+        ("AppIcon-Plum", "Plum"), ("AppIcon-Paper", "Paper"), ("AppIcon-Mono", "Mono"),
+    ]
+
+    var body: some View {
+        ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 18)], spacing: 18) {
+                ForEach(icons, id: \.0) { name, label in
+                    Button {
+                        UIApplication.shared.setAlternateIconName(name == "AppIcon" ? nil : name) { error in
+                            if error == nil { current = name }
+                        }
+                    } label: {
+                        VStack(spacing: 6) {
+                            Image("Preview-\(name)")
+                                .resizable()
+                                .frame(width: 72, height: 72)
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(current == name ? AnyShapeStyle(.tint) : AnyShapeStyle(.quaternary), lineWidth: current == name ? 3 : 1))
+                            Text(label).font(.caption)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(current == name ? .isSelected : [])
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("App Icon")
     }
 }

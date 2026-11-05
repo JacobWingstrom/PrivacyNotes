@@ -1,8 +1,14 @@
 import SwiftUI
 
-struct LockScreen: View {
+/// Reusable passcode prompt with optional biometrics. Used for the app lock and the Vault.
+struct PasscodePrompt: View {
+    let title: String
+    let symbol: String
+    let store: PasscodeStore
+    let allowBiometrics: Bool
+    let onUnlock: () -> Void
+
     @Environment(LockManager.self) private var lock
-    @Environment(AppSettings.self) private var settings
     @State private var code = ""
     @State private var message = ""
     @State private var failures = 0
@@ -12,10 +18,10 @@ struct LockScreen: View {
     var body: some View {
         VStack(spacing: 22) {
             Spacer()
-            Image(systemName: "lock.fill")
+            Image(systemName: symbol)
                 .font(.system(size: 44, weight: .semibold))
                 .foregroundStyle(.tint)
-            Text("Hush is locked").font(.title2.bold())
+            Text(title).font(.title2.bold())
 
             SecureField("Passcode", text: $code)
                 .keyboardType(.numberPad)
@@ -35,10 +41,8 @@ struct LockScreen: View {
                 Text(message).font(.footnote).foregroundStyle(.red)
             }
 
-            if settings.useBiometrics && lock.biometryAvailable {
-                Button {
-                    lock.unlockWithBiometrics()
-                } label: {
+            if allowBiometrics && lock.biometryAvailable {
+                Button(action: useBiometrics) {
                     Label("Use \(lock.biometryName)", systemImage: lock.biometrySymbol)
                 }
             }
@@ -47,14 +51,15 @@ struct LockScreen: View {
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(settings.theme == .black ? Color.black : Color(.systemBackground))
         .task {
             try? await Task.sleep(for: .milliseconds(350))
-            if settings.useBiometrics && lock.biometryAvailable {
-                lock.unlockWithBiometrics()
-            } else {
-                focused = true
-            }
+            if allowBiometrics && lock.biometryAvailable { useBiometrics() } else { focused = true }
+        }
+    }
+
+    private func useBiometrics() {
+        lock.authenticate(reason: "Unlock \(title)") { ok in
+            if ok { onUnlock() } else { focused = true }
         }
     }
 
@@ -63,19 +68,34 @@ struct LockScreen: View {
             message = "Too many tries. Wait \(Int(until.timeIntervalSinceNow.rounded(.up))) seconds."
             return
         }
-        if lock.unlock(with: code) {
+        if store.verify(code) {
             failures = 0
             message = ""
+            onUnlock()
         } else {
             failures += 1
             if failures >= 5 {
-                blockedUntil = .now.addingTimeInterval(Double(30 * (failures - 4)))
-                message = "Too many tries. Wait \(30 * (failures - 4)) seconds."
+                let wait = 30 * (failures - 4)
+                blockedUntil = .now.addingTimeInterval(Double(wait))
+                message = "Too many tries. Wait \(wait) seconds."
             } else {
                 message = "Wrong passcode."
             }
         }
         code = ""
+    }
+}
+
+struct LockScreen: View {
+    @Environment(LockManager.self) private var lock
+    @Environment(AppSettings.self) private var settings
+
+    var body: some View {
+        PasscodePrompt(title: "Hush is locked", symbol: "lock.fill", store: Passcode.app,
+                       allowBiometrics: settings.useBiometrics) {
+            lock.isLocked = false
+        }
+        .background(settings.theme == .black ? Color.black : Color(.systemBackground))
     }
 }
 
@@ -91,6 +111,7 @@ struct PrivacyCover: View {
 
 /// Two-step "enter, then confirm" passcode setup.
 struct PasscodeSetupView: View {
+    var title = "Passcode"
     var onSave: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var first = ""
@@ -115,13 +136,13 @@ struct PasscodeSetupView: View {
                 if !message.isEmpty { Text(message).font(.footnote).foregroundStyle(.red) }
                 Button(confirming ? "Save" : "Next", action: next)
                     .buttonStyle(.borderedProminent)
-                Text("If you forget it, there is no way to recover your notes. Keep a backup.")
+                Text("If you forget it, it can't be recovered. Keep a backup.")
                     .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 Spacer()
             }
             .padding(.top, 40)
             .padding(.horizontal)
-            .navigationTitle("Passcode")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
             .onAppear { focused = true }
@@ -129,9 +150,8 @@ struct PasscodeSetupView: View {
     }
 
     private func next() {
-        let digits = first.allSatisfy(\.isNumber)
         if !confirming {
-            guard digits, (4...12).contains(first.count) else {
+            guard first.allSatisfy(\.isNumber), (4...12).contains(first.count) else {
                 message = "Use 4 to 12 digits."
                 return
             }

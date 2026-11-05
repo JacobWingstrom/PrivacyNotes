@@ -3,6 +3,7 @@ import SwiftData
 
 @main
 struct HushApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var settings = AppSettings()
     @State private var lock = LockManager()
     private let container = Storage.makeContainer()
@@ -35,7 +36,7 @@ enum Storage {
 
         let config = ModelConfiguration(url: dir.appendingPathComponent("hush.store"), cloudKitDatabase: .none)
         do {
-            return try ModelContainer(for: Note.self, configurations: config)
+            return try ModelContainer(for: Schema(Models.all), configurations: config)
         } catch {
             fatalError("Hush could not open its storage: \(error)")
         }

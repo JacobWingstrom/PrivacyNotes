@@ -8,27 +8,54 @@ final class AppSettings {
         static let names = "customNames", start = "startSection", lock = "lockEnabled"
         static let bio = "useBiometrics", autoLock = "autoLock", blur = "blurInSwitcher"
         static let sort = "noteSort", preview = "previewLines"
+        static let homeOrder = "homeBlocks", homeHidden = "hiddenHomeBlocks"
+        static let monday = "weekStartsMonday", journalOn = "journalReminder", journalTime = "journalReminderMinutes"
+        static let vaultBio = "vaultUseBiometrics", showDone = "showCompletedInAll", greeting = "showGreeting"
     }
 
     @ObservationIgnored private let store = UserDefaults.standard
+    static let lockEnabledKey = K.lock
 
+    // Appearance
     var theme: ThemeMode { didSet { store.set(theme.rawValue, forKey: K.theme) } }
     var accentHex: String { didSet { store.set(accentHex, forKey: K.accent) } }
     var fontStyle: FontStyle { didSet { store.set(fontStyle.rawValue, forKey: K.font) } }
     var textSize: TextSize { didSet { store.set(textSize.rawValue, forKey: K.size) } }
     var compactLists: Bool { didSet { store.set(compactLists, forKey: K.compact) } }
     var previewLines: Int { didSet { store.set(previewLines, forKey: K.preview) } }
+
+    // Sidebar
     var sectionOrder: [AppSection] { didSet { store.set(Self.encode(sectionOrder), forKey: K.order) } }
     var hiddenSections: Set<AppSection> { didSet { store.set(Self.encode(hiddenSections), forKey: K.hidden) } }
     var customNames: [String: String] { didSet { store.set(customNames, forKey: K.names) } }
     var startSection: AppSection { didSet { store.set(startSection.rawValue, forKey: K.start) } }
+
+    // Home
+    var homeBlocks: [HomeBlock] { didSet { store.set(Self.encode(homeBlocks), forKey: K.homeOrder) } }
+    var hiddenHomeBlocks: Set<HomeBlock> { didSet { store.set(Self.encode(hiddenHomeBlocks), forKey: K.homeHidden) } }
+    var showGreeting: Bool { didSet { store.set(showGreeting, forKey: K.greeting) } }
+
+    // Security
     var lockEnabled: Bool { didSet { store.set(lockEnabled, forKey: K.lock) } }
     var useBiometrics: Bool { didSet { store.set(useBiometrics, forKey: K.bio) } }
+    var vaultUseBiometrics: Bool { didSet { store.set(vaultUseBiometrics, forKey: K.vaultBio) } }
     var autoLock: AutoLock { didSet { store.set(autoLock.rawValue, forKey: K.autoLock) } }
     var blurInSwitcher: Bool { didSet { store.set(blurInSwitcher, forKey: K.blur) } }
-    var noteSort: NoteSort { didSet { store.set(noteSort.rawValue, forKey: K.sort) } }
 
-    static let lockEnabledKey = K.lock
+    // Content
+    var noteSort: NoteSort { didSet { store.set(noteSort.rawValue, forKey: K.sort) } }
+    var weekStartsMonday: Bool { didSet { store.set(weekStartsMonday, forKey: K.monday) } }
+    var showCompletedInAll: Bool { didSet { store.set(showCompletedInAll, forKey: K.showDone) } }
+
+    // Reminders
+    var defaultReminderMinutes: Int { didSet { store.set(defaultReminderMinutes, forKey: Reminders.defaultMinutesKey) } }
+    var hideNotificationText: Bool { didSet { store.set(hideNotificationText, forKey: Reminders.hideTextKey) } }
+    var journalReminder: Bool {
+        didSet { store.set(journalReminder, forKey: K.journalOn); syncJournalReminder() }
+    }
+    var journalReminderMinutes: Int {
+        didSet { store.set(journalReminderMinutes, forKey: K.journalTime); syncJournalReminder() }
+    }
 
     init() {
         let d = UserDefaults.standard
@@ -40,17 +67,32 @@ final class AppSettings {
         previewLines = d.object(forKey: K.preview) as? Int ?? 2
 
         var order: [AppSection] = Self.decode(d.data(forKey: K.order)) ?? AppSection.allCases
-        for s in AppSection.allCases where !order.contains(s) { order.append(s) } // new sections show up automatically
+        for s in AppSection.allCases where !order.contains(s) { order.append(s) }
         sectionOrder = order
         hiddenSections = Self.decode(d.data(forKey: K.hidden)) ?? []
         customNames = d.dictionary(forKey: K.names) as? [String: String] ?? [:]
-        startSection = AppSection(rawValue: d.string(forKey: K.start) ?? "") ?? .notes
+        startSection = AppSection(rawValue: d.string(forKey: K.start) ?? "") ?? .home
+
+        var blocks: [HomeBlock] = Self.decode(d.data(forKey: K.homeOrder)) ?? HomeBlock.allCases
+        for b in HomeBlock.allCases where !blocks.contains(b) { blocks.append(b) }
+        homeBlocks = blocks
+        hiddenHomeBlocks = Self.decode(d.data(forKey: K.homeHidden)) ?? []
+        showGreeting = d.object(forKey: K.greeting) as? Bool ?? true
 
         lockEnabled = d.bool(forKey: K.lock)
         useBiometrics = d.object(forKey: K.bio) as? Bool ?? true
+        vaultUseBiometrics = d.object(forKey: K.vaultBio) as? Bool ?? true
         autoLock = AutoLock(rawValue: d.object(forKey: K.autoLock) as? Int ?? 60) ?? .oneMinute
         blurInSwitcher = d.object(forKey: K.blur) as? Bool ?? true
+
         noteSort = NoteSort(rawValue: d.string(forKey: K.sort) ?? "") ?? .edited
+        weekStartsMonday = d.bool(forKey: K.monday)
+        showCompletedInAll = d.object(forKey: K.showDone) as? Bool ?? false
+
+        defaultReminderMinutes = d.object(forKey: Reminders.defaultMinutesKey) as? Int ?? 540
+        hideNotificationText = d.bool(forKey: Reminders.hideTextKey)
+        journalReminder = d.bool(forKey: K.journalOn)
+        journalReminderMinutes = d.object(forKey: K.journalTime) as? Int ?? 1260
     }
 
     var accentColor: Color { Color(hex: accentHex) }
@@ -64,6 +106,14 @@ final class AppSettings {
         visibleSections.contains(startSection) ? startSection : visibleSections[0]
     }
 
+    var visibleHomeBlocks: [HomeBlock] { homeBlocks.filter { !hiddenHomeBlocks.contains($0) } }
+
+    var calendar: Calendar {
+        var c = Calendar.current
+        c.firstWeekday = weekStartsMonday ? 2 : 1
+        return c
+    }
+
     func title(for section: AppSection) -> String {
         let custom = customNames[section.rawValue]?.trimmingCharacters(in: .whitespaces) ?? ""
         return custom.isEmpty ? section.defaultTitle : custom
@@ -73,6 +123,25 @@ final class AppSettings {
         sectionOrder = AppSection.allCases
         hiddenSections = []
         customNames = [:]
+    }
+
+    func resetHome() {
+        homeBlocks = HomeBlock.allCases
+        hiddenHomeBlocks = []
+    }
+
+    private func syncJournalReminder() {
+        Reminders.syncJournal(enabled: journalReminder, minutes: journalReminderMinutes)
+    }
+
+    /// A Date binding backed by "minutes after midnight".
+    static func timeBinding(_ get: @escaping () -> Int, _ set: @escaping (Int) -> Void) -> Binding<Date> {
+        Binding(
+            get: { Calendar.current.startOfDay(for: .now).addingTimeInterval(Double(get() * 60)) },
+            set: {
+                let c = Calendar.current.dateComponents([.hour, .minute], from: $0)
+                set((c.hour ?? 0) * 60 + (c.minute ?? 0))
+            })
     }
 
     private static func encode<T: Encodable>(_ value: T) -> Data? { try? JSONEncoder().encode(value) }

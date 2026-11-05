@@ -59,6 +59,7 @@ struct RootView: View {
             default: break
             }
         }
+        .onChange(of: selection) { _, _ in lock.vaultUnlocked = false }
         .onChange(of: lock.isLocked) { _, locked in
             if locked { showSettings = false }
         }
@@ -74,24 +75,19 @@ struct SectionView: View {
     @Environment(AppSettings.self) private var settings
 
     var body: some View {
+        let title = settings.title(for: section)
         switch section {
-        case .notes, .all:
-            NotesListView(title: settings.title(for: section))
-        default:
-            ComingSoonView(section: section, title: settings.title(for: section))
+        case .home: HomeView(title: title)
+        case .all: AllItemsView(title: title)
+        case .notes: NotesListView(title: title)
+        case .tasks: TasksView(title: title)
+        case .drawings: DrawingsView(title: title)
+        case .vault: VaultView(title: title)
+        case .files: FilesView(title: title)
+        case .journals: JournalView(title: title)
+        case .calendar: CalendarView(title: title)
+        case .contacts: ContactsView(title: title)
+        case .bookmarks: BookmarksView(title: title)
         }
-    }
-}
-
-struct ComingSoonView: View {
-    let section: AppSection
-    let title: String
-    var body: some View {
-        ContentUnavailableView {
-            Label(title, systemImage: section.symbol)
-        } description: {
-            Text(section.comingSoonBlurb + "\n\nComing in a future update.")
-        }
-        .navigationTitle(title)
     }
 }
