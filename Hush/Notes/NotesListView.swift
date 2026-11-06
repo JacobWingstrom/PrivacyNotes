@@ -5,6 +5,7 @@ struct NotesListView: View {
     let title: String
     @Environment(\.modelContext) private var context
     @Environment(AppSettings.self) private var settings
+    @Environment(Router.self) private var router
     @Query(sort: \Note.updatedAt, order: .reverse) private var notes: [Note]
     @State private var search = ""
     @State private var tagFilter: String?
@@ -41,44 +42,46 @@ struct NotesListView: View {
                             }
                         }
                     }
-                    .padding(.vertical, 2)
                 }
-                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+                .plainRow(top: 12, bottom: 4)
             }
             if !pinned.isEmpty {
-                Section("Pinned") { rows(pinned) }
+                Section { rows(pinned) } header: { ListHeader(title: "Pinned") }
             }
-            Section(pinned.isEmpty ? "" : "Notes") { rows(others) }
-        }
-        .listStyle(.plain)
-        .hushBackground()
-        .overlay {
+            Section {
+                rows(others)
+            } header: {
+                if !pinned.isEmpty { ListHeader(title: "Notes") }
+            }
             if notes.isEmpty {
-                ContentUnavailableView("No notes yet", systemImage: "square.and.pencil",
-                                       description: Text("Tap the pencil to write your first note."))
+                EmptyMessage(text: "No notes yet. Tap + to write one.")
             } else if sorted.isEmpty {
-                ContentUnavailableView.search(text: search)
+                EmptyMessage(text: "No notes match.")
             }
         }
-        .searchable(text: $search, prompt: "Search notes and tags")
-        .navigationTitle(title)
-        .navigationDestination(for: Note.self) { NoteEditorView(note: $0) }
-        .navigationDestination(item: $newNote) { NoteEditorView(note: $0) }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
+        .hushList()
+        .safeAreaInset(edge: .top, spacing: 0) {
+            SearchHeader(text: $search, prompt: "Search notes…") {
+                FilterButton(active: tagFilter != nil) {
                     Picker("Sort by", selection: $s.noteSort) {
                         ForEach(NoteSort.allCases) { Text($0.label).tag($0) }
                     }
                     Toggle("Compact list", isOn: $s.compactLists)
-                } label: { Image(systemName: "line.3.horizontal.decrease.circle") }
+                    if !allTags.isEmpty {
+                        Picker("Tag", selection: $tagFilter) {
+                            Text("All notes").tag(String?.none)
+                            ForEach(allTags, id: \.self) { Text("#\($0)").tag(Optional($0)) }
+                        }
+                    }
+                }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(action: create) { Image(systemName: "square.and.pencil") }
-                    .accessibilityLabel("New note")
-            }
+        }
+        .navigationTitle(title)
+        .navigationDestination(for: Note.self) { NoteEditorView(note: $0) }
+        .navigationDestination(item: $newNote) { NoteEditorView(note: $0) }
+        .onCreate(.notes) { create() }
+        .onAppear {
+            if let t = router.noteTag { tagFilter = t; router.noteTag = nil }
         }
     }
 
@@ -97,7 +100,7 @@ struct NotesListView: View {
             .swipeActions(edge: .trailing) {
                 Button(role: .destructive) { context.delete(note) } label: { Label("Delete", systemImage: "trash") }
             }
-            .listRowBackground(settings.theme == .black ? Color.black : nil)
+            .hushRow()
         }
     }
 
@@ -136,7 +139,7 @@ struct NoteRow: View {
                 }
                 if !compact {
                     HStack(spacing: 6) {
-                        Text(note.updatedAt, format: .relative(presentation: .named))
+                        Text("Modified \(note.updatedAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute()))")
                         if !note.tags.isEmpty {
                             Text(note.tags.map { "#\($0)" }.joined(separator: " ")).lineLimit(1)
                         }
@@ -146,7 +149,7 @@ struct NoteRow: View {
                 }
             }
         }
-        .padding(.vertical, compact ? 0 : 4)
+        .padding(.vertical, compact ? 2 : 8)
     }
 }
 
@@ -160,7 +163,7 @@ struct TagChip: View {
                 .font(.subheadline.weight(.medium))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.quaternary), in: Capsule())
+                .background(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear), in: Capsule())
                 .foregroundStyle(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
         }
         .buttonStyle(.plain)

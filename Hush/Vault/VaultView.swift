@@ -43,7 +43,9 @@ struct VaultView: View {
 private struct VaultContentView: View {
     @Environment(\.modelContext) private var context
     @Environment(LockManager.self) private var lock
+    @Environment(Router.self) private var router
     @Query(sort: \VaultItem.updatedAt, order: .reverse) private var items: [VaultItem]
+    @State private var choosingKind = false
     @State private var search = ""
     @State private var newItem: VaultItem?
     @State private var pickingPhotos = false
@@ -72,31 +74,25 @@ private struct VaultContentView: View {
                 .swipeActions {
                     Button(role: .destructive) { context.delete(item) } label: { Label("Delete", systemImage: "trash") }
                 }
+                .hushRow()
             }
+            if items.isEmpty { EmptyMessage(text: "Your vault is empty. Tap + to add secure notes, logins or photos.") }
         }
-        .hushBackground()
-        .overlay {
-            if items.isEmpty {
-                ContentUnavailableView("Vault is empty", systemImage: "lock.shield",
-                                       description: Text("Add secure notes, logins or photos with +."))
-            }
+        .hushList()
+        .safeAreaInset(edge: .top, spacing: 0) { SearchHeader(text: $search, prompt: "Search vault…") }
+        .onCreate(.vault) { choosingKind = true }
+        .confirmationDialog("Add to Vault", isPresented: $choosingKind) {
+            Button("Secure Note") { add(.note) }
+            Button("Login") { add(.login) }
+            Button("Photos") { pickingPhotos = true }
         }
-        .searchable(text: $search, prompt: "Search vault")
         .navigationDestination(item: $newItem) { VaultItemEditor(item: $0, isNew: true) }
         .photosPicker(isPresented: $pickingPhotos, selection: $photoSelection, maxSelectionCount: 20, matching: .images)
         .onChange(of: photoSelection) { _, picked in importPhotos(picked) }
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .topBarTrailing) {
                 Button { lock.vaultUnlocked = false } label: { Image(systemName: "lock") }
                     .accessibilityLabel("Lock vault")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button { add(.note) } label: { Label("Secure Note", systemImage: "doc.text") }
-                    Button { add(.login) } label: { Label("Login", systemImage: "key") }
-                    Button { pickingPhotos = true } label: { Label("Photos", systemImage: "photo") }
-                } label: { Image(systemName: "plus") }
-                .accessibilityLabel("Add to vault")
             }
         }
     }
@@ -144,7 +140,7 @@ private struct VaultItemEditor: View {
     @State private var copied = false
 
     var body: some View {
-        Form {
+        HushForm {
             Section {
                 TextField(item.kind == .login ? "Name (e.g. Bank)" : "Title", text: $meta.title).font(.headline)
             }

@@ -1,0 +1,73 @@
+import SwiftUI
+
+/// App-wide navigation state: the current section, the drawer and the bottom bar's + button.
+@Observable
+final class Router {
+    var section: AppSection
+    var drawerOpen = false
+    /// Bumped by the + button; the visible section creates a new item when it changes.
+    var createRequest = 0
+    /// A tag picked in the drawer, consumed by the Notes list.
+    var noteTag: String?
+    /// Set when "+" on Home or All picks another section; that section creates an item when it appears.
+    var pendingCreate: AppSection?
+
+    init(section: AppSection) { self.section = section }
+
+    func go(_ s: AppSection) {
+        section = s
+        withAnimation(.snappy(duration: 0.25)) { drawerOpen = false }
+    }
+
+    func create() { createRequest += 1 }
+
+    func startNew(in s: AppSection) {
+        pendingCreate = s
+        go(s)
+    }
+}
+
+/// Runs `action` when the + button is tapped while this section is showing,
+/// or when Home/All asked this section to create something.
+struct OnCreate: ViewModifier {
+    let section: AppSection
+    let action: () -> Void
+    @Environment(Router.self) private var router
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: router.createRequest) { action() }
+            .onAppear {
+                if router.pendingCreate == section {
+                    router.pendingCreate = nil
+                    DispatchQueue.main.async { action() }
+                }
+            }
+    }
+}
+
+struct NewItemDialog: ViewModifier {
+    static let kinds: [(AppSection, String)] = [
+        (.notes, "Note"), (.tasks, "Task"), (.calendar, "Event"), (.journals, "Journal Entry"),
+        (.drawings, "Drawing"), (.contacts, "Contact"), (.bookmarks, "Bookmark"),
+    ]
+    @Binding var isPresented: Bool
+    @Environment(Router.self) private var router
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog("New", isPresented: $isPresented) {
+            ForEach(Self.kinds, id: \.0) { section, label in
+                Button(label) { router.startNew(in: section) }
+            }
+        }
+    }
+}
+
+extension View {
+    func onCreate(_ section: AppSection, perform action: @escaping () -> Void) -> some View {
+        modifier(OnCreate(section: section, action: action))
+    }
+    func newItemDialog(isPresented: Binding<Bool>) -> some View {
+        modifier(NewItemDialog(isPresented: isPresented))
+    }
+}

@@ -7,7 +7,11 @@ import UniformTypeIdentifiers
 struct FilesView: View {
     let title: String
     @Environment(\.modelContext) private var context
+    @Environment(Router.self) private var router
+    @Environment(\.palette) private var palette
     @Query(sort: \StoredFile.createdAt, order: .reverse) private var files: [StoredFile]
+    @State private var kind: FileKind?
+    @State private var choosingSource = false
     @State private var search = ""
     @State private var importingFiles = false
     @State private var pickingPhotos = false
@@ -24,8 +28,23 @@ struct FilesView: View {
         var label: String { rawValue.capitalized }
     }
 
+    enum FileKind: String, CaseIterable, Identifiable {
+        case images, video, audio, documents
+        var id: String { rawValue }
+        var label: String { rawValue.capitalized }
+        func matches(_ f: StoredFile) -> Bool {
+            let t = UTType(f.typeIdentifier) ?? .data
+            switch self {
+            case .images: return t.conforms(to: .image)
+            case .video: return t.conforms(to: .movie)
+            case .audio: return t.conforms(to: .audio)
+            case .documents: return !t.conforms(to: .image) && !t.conforms(to: .movie) && !t.conforms(to: .audio)
+            }
+        }
+    }
+
     private var filtered: [StoredFile] {
-        let base = files.filter { search.isEmpty || $0.name.localizedCaseInsensitiveContains(search) }
+        let base = files.filter { (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search)) && (kind?.matches($0) ?? true) }
         switch sort {
         case .newest: return base
         case .name: return base.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -35,17 +54,25 @@ struct FilesView: View {
 
     var body: some View {
         List {
-            if !files.isEmpty && search.isEmpty {
-                Section {
-                    LabeledContent("\(files.count) file\(files.count == 1 ? "" : "s")",
-                                   value: ByteCountFormatter.string(fromByteCount: Int64(files.reduce(0) { $0 + $1.size }), countStyle: .file))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label("Encrypted storage", systemImage: "lock.doc")
+                    Spacer()
+                    Text("\(files.count) file\(files.count == 1 ? "" : "s") · \(ByteCountFormatter.string(fromByteCount: Int64(files.reduce(0) { $0 + $1.size }), countStyle: .file))")
+                        .monospacedDigit()
                 }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                Text("No size limits — files are only limited by your iPhone's free space.")
+                    .font(.caption).foregroundStyle(.tertiary)
             }
+            .plainRow(top: 12, bottom: 6)
+            FilterChips(options: [(nil, "All")] + FileKind.allCases.map { ($0, $0.label) }, selection: $kind)
+                .plainRow(top: 4, bottom: 6)
             ForEach(filtered) { file in
                 Button { open(file) } label: { FileRow(file: file) }
                     .foregroundStyle(.primary)
+                    .hushRow()
                     .swipeActions {
                         Button(role: .destructive) { context.delete(file) } label: { Label("Delete", systemImage: "trash") }
                         Button { renameText = file.name; renaming = file } label: { Label("Rename", systemImage: "pencil") }
@@ -57,28 +84,25 @@ struct FilesView: View {
                     }
             }
         }
-        .hushBackground()
+        .hushList()
         .overlay {
-            if files.isEmpty {
-                ContentUnavailableView("No files yet", systemImage: "folder",
-                                       description: Text("Import photos, PDFs and documents. They're copied into Hush and encrypted."))
+            if filtered.isEmpty {
+                EmptyMessage(text: files.isEmpty ? "No files yet. Tap + to import photos, PDFs and documents." : "No files match.")
+                    .allowsHitTesting(false)
             }
         }
-        .searchable(text: $search, prompt: "Search files")
-        .navigationTitle(title)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
+        .safeAreaInset(edge: .top, spacing: 0) {
+            SearchHeader(text: $search, prompt: "Search files…") {
+                FilterButton(active: sort != .newest) {
                     Picker("Sort", selection: $sort) { ForEach(FileSort.allCases) { Text($0.label).tag($0) } }
-                } label: { Image(systemName: "arrow.up.arrow.down") }
+                }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button { importingFiles = true } label: { Label("From Files", systemImage: "folder") }
-                    Button { pickingPhotos = true } label: { Label("From Photos", systemImage: "photo.on.rectangle") }
-                } label: { Image(systemName: "plus") }
-                .accessibilityLabel("Import")
-            }
+        }
+        .navigationTitle(title)
+        .onCreate(.files) { choosingSource = true }
+        .confirmationDialog("Import", isPresented: $choosingSource) {
+            Button("From Files") { importingFiles = true }
+            Button("From Photos") { pickingPhotos = true }
         }
         .fileImporter(isPresented: $importingFiles, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { importFiles(urls) }

@@ -5,6 +5,7 @@ struct JournalView: View {
     let title: String
     @Environment(\.modelContext) private var context
     @Environment(AppSettings.self) private var settings
+    @Environment(Router.self) private var router
     @Query(sort: \JournalEntry.date, order: .reverse) private var entries: [JournalEntry]
     @State private var search = ""
     @State private var newEntry: JournalEntry?
@@ -31,37 +32,32 @@ struct JournalView: View {
                         Divider()
                         stat(JournalStats.averageMood(entries), "Avg. mood", "face.smiling")
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 12)
+                    .background(Color.clear)
                 }
+                .plainRow(top: 12, bottom: 8)
             }
             ForEach(groups, id: \.0) { month, items in
-                Section(month.formatted(.dateTime.month(.wide).year())) {
+                Section {
                     ForEach(items) { entry in
                         NavigationLink { JournalEditorView(entry: entry) } label: { JournalRow(entry: entry, compact: settings.compactLists) }
+                            .hushRow()
                     }
                     .onDelete { offsets in offsets.map { items[$0] }.forEach(context.delete) }
+                } header: {
+                    ListHeader(title: month.formatted(.dateTime.month(.wide).year()))
                 }
             }
+            if entries.isEmpty { EmptyMessage(text: "Start your journal. Tap + to write about today.") }
         }
-        .hushBackground()
-        .overlay {
-            if entries.isEmpty {
-                ContentUnavailableView("Start your journal", systemImage: "book.closed",
-                                       description: Text("Tap + to write about today."))
-            }
-        }
-        .searchable(text: $search, prompt: "Search journal")
+        .hushList()
+        .safeAreaInset(edge: .top, spacing: 0) { SearchHeader(text: $search, prompt: "Search journal…") }
         .navigationTitle(title)
         .navigationDestination(item: $newEntry) { JournalEditorView(entry: $0, isNew: true) }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    let e = JournalEntry()
-                    context.insert(e)
-                    newEntry = e
-                } label: { Image(systemName: "plus") }
-                .accessibilityLabel("New entry")
-            }
+        .onCreate(.journals) {
+            let e = JournalEntry()
+            context.insert(e)
+            newEntry = e
         }
     }
 
@@ -127,7 +123,7 @@ struct JournalEditorView: View {
     var isNew = false
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Environment(AppSettings.self) private var settings
+    @Environment(\.palette) private var palette
     @State private var deleting = false
     @FocusState private var focus: Field?
     private enum Field { case title, body }
@@ -166,7 +162,7 @@ struct JournalEditorView: View {
         }
         .padding(.horizontal)
         .padding(.top, 8)
-        .background((settings.theme == .black ? Color.black : Color(.systemBackground)).ignoresSafeArea())
+        .background(palette.background.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

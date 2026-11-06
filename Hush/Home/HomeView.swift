@@ -5,7 +5,12 @@ struct HomeView: View {
     let title: String
     @Environment(\.modelContext) private var context
     @Environment(AppSettings.self) private var settings
+    @Environment(Router.self) private var router
+    @Environment(\.palette) private var palette
     @Query(sort: \Note.updatedAt, order: .reverse) private var notes: [Note]
+    @State private var choosing = false
+    @State private var calMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
+    @State private var calSelected = Calendar.current.startOfDay(for: .now)
     @Query private var tasks: [TaskItem]
     @Query(sort: \CalendarEvent.start) private var events: [CalendarEvent]
     @Query(sort: \JournalEntry.date, order: .reverse) private var journals: [JournalEntry]
@@ -45,13 +50,16 @@ struct HomeView: View {
             }
             .padding()
         }
-        .background(settings.theme == .black ? Color.black : Color(.systemGroupedBackground))
+        .background(palette.background)
         .navigationTitle(title)
+        .onCreate(.home) { choosing = true }
+        .newItemDialog(isPresented: $choosing)
         .navigationDestination(item: $newNote) { NoteEditorView(note: $0) }
         .navigationDestination(item: $newEntry) { JournalEditorView(entry: $0, isNew: true) }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("Customize") { customizing = true }
+                Button { customizing = true } label: { Image(systemName: "square.grid.2x2") }
+                    .accessibilityLabel("Customize Home")
             }
         }
         .sheet(isPresented: $customizing) { NavigationStack { HomeCustomizeView() } }
@@ -70,6 +78,8 @@ struct HomeView: View {
     private func blockView(_ block: HomeBlock) -> some View {
         switch block {
         case .quickAdd: quickAddCard
+        case .mood: moodCard
+        case .calendar: calendarCard
         case .today: todayCard
         case .upcoming: upcomingCard
         case .pinned: pinnedCard
@@ -97,6 +107,53 @@ struct HomeView: View {
                     .onSubmit(quickAdd)
                 if added { Image(systemName: "checkmark").foregroundStyle(.green).transition(.scale) }
             }
+        }
+    }
+
+    private var moodCard: some View {
+        let today = journals.first { Calendar.current.isDateInToday($0.date) }
+        return Card(title: "How are you today?", symbol: "face.smiling") {
+            HStack(spacing: 8) {
+                ForEach(Mood.allCases.filter { $0 != .none }) { mood in
+                    Button {
+                        let entry = today ?? {
+                            let e = JournalEntry()
+                            context.insert(e)
+                            return e
+                        }()
+                        entry.mood = entry.mood == mood ? .none : mood
+                        entry.updatedAt = .now
+                        if entry.isEmpty { context.delete(entry) }
+                    } label: {
+                        Text(mood.emoji)
+                            .font(.title2)
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(today?.mood == mood ? AnyShapeStyle(.tint.opacity(0.25)) : AnyShapeStyle(palette.field),
+                                        in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(mood.label)
+                }
+            }
+            HStack {
+                Text("Awful").font(.caption2).foregroundStyle(.secondary)
+                Spacer()
+                Text("Great").font(.caption2).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var calendarCard: some View {
+        let cal = settings.calendar
+        var marked = Set<Date>()
+        for e in events { marked.insert(cal.startOfDay(for: e.start)) }
+        for t in tasks where !t.isDone { if let d = t.dueDate { marked.insert(cal.startOfDay(for: d)) } }
+        for j in journals { marked.insert(cal.startOfDay(for: j.date)) }
+        return Card(title: "Calendar", symbol: "calendar.badge.clock") {
+            MonthGrid(month: $calMonth, selected: $calSelected, calendar: cal, marked: marked)
+            Button("Open Calendar") { router.go(.calendar) }
+                .font(.subheadline)
+                .frame(maxWidth: .infinity)
         }
     }
 

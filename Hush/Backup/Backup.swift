@@ -209,7 +209,7 @@ struct BackupView: View {
     @State private var message: String?
 
     var body: some View {
-        Form {
+        HushForm {
             Section {
                 SecureField("Backup password (8+ characters)", text: $password)
                 SecureField("Confirm password", text: $confirm)

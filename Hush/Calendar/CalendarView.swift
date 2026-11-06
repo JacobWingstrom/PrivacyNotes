@@ -5,7 +5,10 @@ struct CalendarView: View {
     let title: String
     @Environment(AppSettings.self) private var settings
     @Environment(\.modelContext) private var context
+    @Environment(\.palette) private var palette
     @Query(sort: \CalendarEvent.start) private var events: [CalendarEvent]
+    @State private var collapsed = false
+    @State private var search = ""
     @Query private var tasks: [TaskItem]
     @Query(sort: \JournalEntry.date, order: .reverse) private var journals: [JournalEntry]
     @State private var month = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
@@ -20,18 +23,46 @@ struct CalendarView: View {
             if agenda {
                 agendaSections
             } else {
-                Section {
-                    MonthGrid(month: $month, selected: $selected, calendar: cal, marked: markedDays)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+                VStack(spacing: 6) {
+                    MonthGrid(month: $month, selected: $selected, calendar: cal, marked: markedDays, collapsed: collapsed)
+                    Capsule()
+                        .fill(.secondary.opacity(0.5))
+                        .frame(width: 40, height: 5)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                        .onTapGesture { withAnimation(.snappy) { collapsed.toggle() } }
+                        .gesture(DragGesture(minimumDistance: 10).onEnded { v in
+                            withAnimation(.snappy) { collapsed = v.translation.height < 0 }
+                        })
+                        .accessibilityLabel(collapsed ? "Show whole month" : "Show one week")
+                        .accessibilityAddTraits(.isButton)
                 }
-                Section(DateText.relativeDay(selected) == "Today" ? "Today" : selected.formatted(.dateTime.weekday(.wide).month().day())) {
-                    DayItems(day: selected, events: events, tasks: tasks, journals: journals)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 6)
+                .background(palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .plainRow(top: 12, bottom: 8)
+                Section {
+                    DayItems(day: selected, events: filteredEvents, tasks: tasks, journals: journals)
+                        .hushRow()
+                } header: {
+                    HStack(spacing: 8) {
+                        if cal.isDateInToday(selected) { Text("Today").font(.subheadline.bold()).foregroundStyle(.tint) }
+                        ListHeader(title: selected.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                    }
                 }
             }
         }
-        .hushBackground()
+        .hushList()
+        .safeAreaInset(edge: .top, spacing: 0) { SearchHeader(text: $search, prompt: "Search events…") }
         .navigationTitle(title)
         .navigationDestination(item: $newEvent) { EventEditorView(event: $0, isNew: true) }
+        .onCreate(.calendar) {
+            let start = cal.date(bySettingHour: min(Calendar.current.component(.hour, from: .now) + 1, 23), minute: 0, second: 0, of: selected) ?? selected
+            let e = CalendarEvent(start: start)
+            context.insert(e)
+            newEvent = e
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -40,20 +71,18 @@ struct CalendarView: View {
                 .accessibilityLabel(agenda ? "Month view" : "Agenda view")
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    let start = cal.date(bySettingHour: Calendar.current.component(.hour, from: .now) + 1, minute: 0, second: 0, of: selected) ?? selected
-                    let e = CalendarEvent(start: start)
-                    context.insert(e)
-                    newEvent = e
-                } label: { Image(systemName: "plus") }
-                .accessibilityLabel("New event")
-            }
-            ToolbarItem(placement: .topBarLeading) {
                 Button("Today") {
                     selected = cal.startOfDay(for: .now)
                     month = cal.dateInterval(of: .month, for: .now)?.start ?? .now
                 }
             }
+        }
+    }
+
+    private var filteredEvents: [CalendarEvent] {
+        search.isEmpty ? events : events.filter {
+            $0.title.localizedCaseInsensitiveContains(search) || $0.location.localizedCaseInsensitiveContains(search)
+                || $0.notes.localizedCaseInsensitiveContains(search)
         }
     }
 
@@ -78,12 +107,12 @@ struct CalendarView: View {
         let today = cal.startOfDay(for: .now)
         let days = (0..<60).compactMap { cal.date(byAdding: .day, value: $0, to: today) }
             .filter { markedDays.contains($0) }
-        if days.isEmpty {
-            ContentUnavailableView("Nothing in the next 60 days", systemImage: "calendar")
-        }
+        if days.isEmpty { EmptyMessage(text: "Nothing in the next 60 days.") }
         ForEach(days, id: \.self) { day in
-            Section(DateText.relativeDay(day)) {
-                DayItems(day: day, events: events, tasks: tasks, journals: journals)
+            Section {
+                DayItems(day: day, events: filteredEvents, tasks: tasks, journals: journals).hushRow()
+            } header: {
+                ListHeader(title: DateText.relativeDay(day))
             }
         }
     }
@@ -94,11 +123,12 @@ struct MonthGrid: View {
     @Binding var selected: Date
     let calendar: Calendar
     let marked: Set<Date>
+    var collapsed = false
 
     var body: some View {
         VStack(spacing: 10) {
             HStack {
-                Text(month.formatted(.dateTime.month(.wide).year())).font(.headline)
+                Text((collapsed ? selected : month).formatted(.dateTime.month(.abbreviated).year())).font(.headline)
                 Spacer()
                 Button { shift(-1) } label: { Image(systemName: "chevron.left") }
                     .accessibilityLabel("Previous month")
@@ -116,7 +146,7 @@ struct MonthGrid: View {
                 }
             }
 
-            let cells = dayCells
+            let cells = visibleCells
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 6) {
                 ForEach(cells.indices, id: \.self) { i in
                     if let day = cells[i] {
@@ -152,9 +182,23 @@ struct MonthGrid: View {
         return cells
     }
 
-    private func shift(_ months: Int) {
+    /// In week mode only the row holding the selected day is shown.
+    private var visibleCells: [Date?] {
+        let cells = dayCells
+        guard collapsed, !cells.isEmpty else { return cells }
+        let index = cells.firstIndex { $0.map { calendar.isDate($0, inSameDayAs: selected) } ?? false } ?? 0
+        let row = index / 7
+        return Array(cells[(row * 7)..<min(row * 7 + 7, cells.count)])
+    }
+
+    private func shift(_ amount: Int) {
         withAnimation(.snappy) {
-            month = calendar.date(byAdding: .month, value: months, to: month) ?? month
+            if collapsed {
+                selected = calendar.date(byAdding: .day, value: 7 * amount, to: selected) ?? selected
+                month = calendar.dateInterval(of: .month, for: selected)?.start ?? month
+            } else {
+                month = calendar.date(byAdding: .month, value: amount, to: month) ?? month
+            }
         }
     }
 }
@@ -172,7 +216,8 @@ private struct DayCell: View {
                 .foregroundStyle(isSelected ? AnyShapeStyle(.white) : (isToday ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary)))
                 .frame(width: 32, height: 32)
                 .background {
-                    if isSelected { Circle().fill(.tint) }
+                    if isSelected { RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.tint).frame(width: 40, height: 40) }
+                    else if isToday { RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(.tint, lineWidth: 1.5).frame(width: 40, height: 40) }
                 }
             Circle()
                 .fill(hasItems ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
@@ -255,7 +300,7 @@ struct EventEditorView: View {
     ]
 
     var body: some View {
-        Form {
+        HushForm {
             Section {
                 TextField("Title", text: $event.title).font(.headline).focused($titleFocused)
                 TextField("Location", text: $event.location)

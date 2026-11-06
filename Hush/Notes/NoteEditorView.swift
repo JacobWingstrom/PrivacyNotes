@@ -5,7 +5,7 @@ struct NoteEditorView: View {
     @Bindable var note: Note
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Environment(AppSettings.self) private var settings
+    @Environment(\.palette) private var palette
     @FocusState private var focus: Field?
     @State private var deleting = false
     @State private var editingTags = false
@@ -45,7 +45,7 @@ struct NoteEditorView: View {
         .padding(.horizontal)
         .background {
             ZStack {
-                settings.theme == .black ? Color.black : Color(.systemBackground)
+                palette.background
                 if let c = note.color { c.opacity(0.08) }
             }
             .ignoresSafeArea()

@@ -5,6 +5,8 @@ struct BookmarksView: View {
     let title: String
     @Environment(\.modelContext) private var context
     @Environment(\.openURL) private var openURL
+    @Environment(Router.self) private var router
+    @State private var quickLink = ""
     @Query(sort: \Bookmark.createdAt, order: .reverse) private var bookmarks: [Bookmark]
     @State private var search = ""
     @State private var tagFilter: String?
@@ -25,6 +27,8 @@ struct BookmarksView: View {
 
     var body: some View {
         List {
+            QuickAddField(prompt: "Paste or type a link…", text: $quickLink, keyboard: .URL, onSubmit: addQuick)
+                .plainRow(top: 12, bottom: 6)
             if !bookmarks.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -36,11 +40,28 @@ struct BookmarksView: View {
                     }
                     .padding(.vertical, 2)
                 }
-                .chipRow()
+                .plainRow(top: 4, bottom: 6)
             }
             ForEach(filtered) { b in
-                Button { if let url = b.url { openURL(url) } } label: { BookmarkRow(bookmark: b) }
+                HStack(alignment: .top) {
+                    Button { if let url = b.url { openURL(url) } } label: { BookmarkRow(bookmark: b) }
+                        .buttonStyle(.plain)
+                    Menu {
+                        Button { editing = b } label: { Label("Edit", systemImage: "pencil") }
+                        Button { b.isFavorite.toggle() } label: { Label(b.isFavorite ? "Unfavorite" : "Favorite", systemImage: "star") }
+                        Button { UIPasteboard.general.string = b.urlString } label: { Label("Copy Link", systemImage: "doc.on.doc") }
+                        if let url = b.url { ShareLink(item: url) { Label("Share…", systemImage: "square.and.arrow.up") } }
+                        Button(role: .destructive) { context.delete(b) } label: { Label("Delete", systemImage: "trash") }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .rotationEffect(.degrees(90))
+                            .frame(width: 36, height: 36)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary))
+                    }
+                    .foregroundStyle(.secondary)
+                }
                     .foregroundStyle(.primary)
+                    .hushRow()
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) { context.delete(b) } label: { Label("Delete", systemImage: "trash") }
                         Button { editing = b } label: { Label("Edit", systemImage: "pencil") }
@@ -57,30 +78,45 @@ struct BookmarksView: View {
                     }
             }
         }
-        .listStyle(.plain)
-        .hushBackground()
+        .hushList()
         .overlay {
             if bookmarks.isEmpty {
-                ContentUnavailableView("No bookmarks yet", systemImage: "bookmark",
-                                       description: Text("Save links here. Hush never loads them in the background, so nothing is tracked."))
+                EmptyMessage(text: "No bookmarks yet. Hush never loads links in the background, so nothing is tracked.")
+                    .padding(.top, 80)
+                    .allowsHitTesting(false)
             }
         }
-        .searchable(text: $search, prompt: "Search bookmarks")
+        .safeAreaInset(edge: .top, spacing: 0) {
+            SearchHeader(text: $search, prompt: "Search bookmarks…") {
+                FilterButton(active: favoritesOnly || tagFilter != nil) {
+                    Toggle("Favorites only", isOn: $favoritesOnly)
+                    Picker("Tag", selection: $tagFilter) {
+                        Text("All tags").tag(String?.none)
+                        ForEach(allTags, id: \.self) { Text("#\($0)").tag(Optional($0)) }
+                    }
+                }
+            }
+        }
         .navigationTitle(title)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { adding = true } label: { Image(systemName: "plus") }.accessibilityLabel("New bookmark")
-            }
-        }
+        .onCreate(.bookmarks) { adding = true }
         .sheet(isPresented: $adding) { NavigationStack { BookmarkForm(bookmark: nil) } }
         .sheet(item: $editing) { b in NavigationStack { BookmarkForm(bookmark: b) } }
+    }
+
+    private func addQuick() {
+        let raw = quickLink.trimmed
+        guard !raw.isEmpty else { return }
+        let b = Bookmark()
+        b.urlString = Bookmark.normalize(raw)
+        context.insert(b)
+        quickLink = ""
     }
 }
 
 struct BookmarkRow: View {
     let bookmark: Bookmark
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             Text(String(bookmark.host.replacingOccurrences(of: "www.", with: "").prefix(1)).uppercased())
                 .font(.headline)
                 .frame(width: 36, height: 36)
@@ -91,12 +127,15 @@ struct BookmarkRow: View {
                     Text(bookmark.displayTitle).lineLimit(1)
                     if bookmark.isFavorite { Image(systemName: "star.fill").font(.caption2).foregroundStyle(.yellow) }
                 }
-                Text(bookmark.host).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(bookmark.urlString).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 if !bookmark.tags.isEmpty {
                     Text(bookmark.tags.map { "#\($0)" }.joined(separator: " ")).font(.caption2).foregroundStyle(.tertiary)
                 }
             }
+            Spacer(minLength: 0)
         }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
     }
 }
 
@@ -113,7 +152,7 @@ struct BookmarkForm: View {
     @State private var loaded = false
 
     var body: some View {
-        Form {
+        HushForm {
             Section {
                 HStack {
                     TextField("example.com", text: $url)

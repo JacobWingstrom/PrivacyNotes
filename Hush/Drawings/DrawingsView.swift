@@ -5,7 +5,10 @@ import PencilKit
 struct DrawingsView: View {
     let title: String
     @Environment(\.modelContext) private var context
+    @Environment(Router.self) private var router
+    @Environment(\.palette) private var palette
     @Query(sort: \Drawing.updatedAt, order: .reverse) private var drawings: [Drawing]
+    @State private var search = ""
     @State private var newDrawing: Drawing?
     @State private var renaming: Drawing?
     @State private var renameText = ""
@@ -13,14 +16,14 @@ struct DrawingsView: View {
     var body: some View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 14)], spacing: 14) {
-                ForEach(drawings) { drawing in
+                ForEach(drawings.filter { search.isEmpty || $0.title.localizedCaseInsensitiveContains(search) }) { drawing in
                     NavigationLink { DrawingEditorView(drawing: drawing) } label: {
                         VStack(alignment: .leading, spacing: 6) {
                             DrawingThumbnail(data: drawing.data)
                                 .frame(height: 150)
                                 .frame(maxWidth: .infinity)
                                 .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(.quaternary))
+                                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(palette.border))
                             Text(drawing.title).font(.subheadline.weight(.medium)).lineLimit(1)
                             Text(drawing.updatedAt, format: .relative(presentation: .named))
                                 .font(.caption).foregroundStyle(.secondary)
@@ -35,24 +38,21 @@ struct DrawingsView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground).opacity(0))
+        .background(palette.background)
         .overlay {
             if drawings.isEmpty {
-                ContentUnavailableView("No drawings yet", systemImage: "scribble.variable",
-                                       description: Text("Tap + to start sketching. Works with your finger or Apple Pencil."))
+                EmptyMessage(text: "No drawings yet. Tap + to sketch with your finger or Apple Pencil.")
+                    .padding(.horizontal)
+                    .frame(maxHeight: .infinity, alignment: .top)
             }
         }
+        .safeAreaInset(edge: .top, spacing: 0) { SearchHeader(text: $search, prompt: "Search drawings…") }
         .navigationTitle(title)
         .navigationDestination(item: $newDrawing) { DrawingEditorView(drawing: $0) }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    let d = Drawing()
-                    context.insert(d)
-                    newDrawing = d
-                } label: { Image(systemName: "plus") }
-                .accessibilityLabel("New drawing")
-            }
+        .onCreate(.drawings) {
+            let d = Drawing()
+            context.insert(d)
+            newDrawing = d
         }
         .alert("Rename Drawing", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Title", text: $renameText)

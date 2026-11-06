@@ -4,6 +4,7 @@ import SwiftData
 struct ContactsView: View {
     let title: String
     @Environment(\.modelContext) private var context
+    @Environment(Router.self) private var router
     @Query private var contacts: [Contact]
     @State private var search = ""
     @State private var newContact: Contact?
@@ -30,31 +31,23 @@ struct ContactsView: View {
         let favorites = filtered.filter(\.isFavorite)
         List {
             if !favorites.isEmpty && search.isEmpty {
-                Section("Favorites") { ForEach(favorites) { row($0) } }
+                Section { ForEach(favorites) { row($0) } } header: { ListHeader(title: "Favorites") }
             }
             ForEach(groups, id: \.0) { letter, items in
-                Section(letter) { ForEach(items) { row($0) } }
+                Section { ForEach(items) { row($0) } } header: { ListHeader(title: letter) }
             }
-        }
-        .hushBackground()
-        .overlay {
             if contacts.isEmpty {
-                ContentUnavailableView("No contacts yet", systemImage: "person.crop.rectangle",
-                                       description: Text("These stay inside Hush, separate from your iPhone's address book."))
+                EmptyMessage(text: "No contacts yet. They stay inside Hush, apart from your iPhone's address book.")
             }
         }
-        .searchable(text: $search, prompt: "Search contacts")
+        .hushList()
+        .safeAreaInset(edge: .top, spacing: 0) { SearchHeader(text: $search, prompt: "Search contacts…") }
         .navigationTitle(title)
         .navigationDestination(item: $newContact) { ContactEditorView(contact: $0, isNew: true) }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    let c = Contact()
-                    context.insert(c)
-                    newContact = c
-                } label: { Image(systemName: "plus") }
-                .accessibilityLabel("New contact")
-            }
+        .onCreate(.contacts) {
+            let c = Contact()
+            context.insert(c)
+            newContact = c
         }
     }
 
@@ -70,6 +63,7 @@ struct ContactsView: View {
                 }
                 .tint(.yellow)
             }
+            .hushRow()
     }
 }
 
@@ -87,6 +81,7 @@ struct ContactRow: View {
             Spacer()
             if contact.isFavorite { Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow) }
         }
+        .padding(.vertical, 4)
     }
 }
 
@@ -101,7 +96,7 @@ struct ContactEditorView: View {
     static let emailLabels = ["personal", "work", "other"]
 
     var body: some View {
-        Form {
+        HushForm {
             Section {
                 VStack(spacing: 10) {
                     Avatar(text: contact.initials, emoji: contact.emoji, size: 80)

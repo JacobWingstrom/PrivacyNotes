@@ -5,6 +5,8 @@ import SwiftData
 struct AllItemsView: View {
     let title: String
     @Environment(AppSettings.self) private var settings
+    @Environment(Router.self) private var router
+    @State private var choosing = false
     @Query private var notes: [Note]
     @Query private var tasks: [TaskItem]
     @Query private var events: [CalendarEvent]
@@ -46,7 +48,7 @@ struct AllItemsView: View {
         let list = items
         List {
             FilterChips(options: [(nil, "Everything")] + kinds.map { ($0, settings.title(for: $0)) }, selection: $kind)
-                .chipRow()
+                .plainRow(top: 12, bottom: 6)
             ForEach(list) { item in
                 NavigationLink { item.destination() } label: {
                     HStack(spacing: 12) {
@@ -61,21 +63,25 @@ struct AllItemsView: View {
                             }
                         }
                     }
+                    .padding(.vertical, 4)
+                }
+                .hushRow()
+            }
+            if list.isEmpty { EmptyMessage(text: search.isEmpty ? "Nothing here yet. Tap + to add something." : "Nothing matches.") }
+        }
+        .hushList()
+        .safeAreaInset(edge: .top, spacing: 0) {
+            SearchHeader(text: $search, prompt: "Search everything…") {
+                FilterButton(active: kind != nil) {
+                    Picker("Show", selection: $kind) {
+                        Text("Everything").tag(AppSection?.none)
+                        ForEach(kinds) { Text(settings.title(for: $0)).tag(Optional($0)) }
+                    }
                 }
             }
         }
-        .listStyle(.plain)
-        .hushBackground()
-        .overlay {
-            if list.isEmpty {
-                if search.isEmpty {
-                    ContentUnavailableView("Nothing here yet", systemImage: "square.grid.2x2")
-                } else {
-                    ContentUnavailableView.search(text: search)
-                }
-            }
-        }
-        .searchable(text: $search, prompt: "Search everything")
         .navigationTitle(title)
+        .onCreate(.all) { choosing = true }
+        .newItemDialog(isPresented: $choosing)
     }
 }

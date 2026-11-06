@@ -24,12 +24,14 @@ enum AppSection: String, CaseIterable, Identifiable, Codable, Hashable {
 }
 
 enum HomeBlock: String, CaseIterable, Identifiable, Codable, Hashable {
-    case quickAdd, today, upcoming, pinned, recentNotes, journal, stats
+    case quickAdd, mood, today, calendar, upcoming, pinned, recentNotes, journal, stats
 
     var id: String { rawValue }
     var title: String {
         switch self {
         case .quickAdd: "Quick Add"
+        case .mood: "Mood Check-in"
+        case .calendar: "Calendar"
         case .today: "Today"
         case .upcoming: "Next 7 Days"
         case .pinned: "Pinned Notes"
@@ -41,6 +43,8 @@ enum HomeBlock: String, CaseIterable, Identifiable, Codable, Hashable {
     var symbol: String {
         switch self {
         case .quickAdd: "plus.circle"
+        case .mood: "face.smiling"
+        case .calendar: "calendar.badge.clock"
         case .today: "sun.max"
         case .upcoming: "calendar"
         case .pinned: "pin"

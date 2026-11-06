@@ -4,15 +4,24 @@ import SwiftData
 @main
 struct HushApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var settings = AppSettings()
+    @State private var settings: AppSettings
     @State private var lock = LockManager()
+    @State private var router: Router
     private let container = Storage.makeContainer()
+
+    init() {
+        let s = AppSettings()
+        _settings = State(initialValue: s)
+        _router = State(initialValue: Router(section: s.effectiveStartSection))
+    }
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(settings)
                 .environment(lock)
+                .environment(router)
+                .onAppear { DemoData.seedIfRequested(container.mainContext) }
         }
         .modelContainer(container)
     }

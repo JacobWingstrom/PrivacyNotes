@@ -49,3 +49,33 @@ jobs:
           gh release create latest Hush.ipa --prerelease --target "$GITHUB_SHA" \
             --title "Hush (latest build)" \
             --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Download Hush.ipa on your iPhone, then open it with AltStore."
+
+  screenshots:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build for Simulator and capture screens
+        run: ./scripts/screenshots.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: shots/
+
+      - name: Publish screenshots branch
+        run: |
+          cp -R shots /tmp/shots
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git checkout --orphan ci-screenshots
+          git rm -rfq .
+          cp /tmp/shots/*.png .
+          git add *.png
+          git commit -qm "Screenshots for ${GITHUB_SHA::7}"
+          git push -fq origin ci-screenshots

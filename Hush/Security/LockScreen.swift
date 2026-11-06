@@ -89,21 +89,22 @@ struct PasscodePrompt: View {
 struct LockScreen: View {
     @Environment(LockManager.self) private var lock
     @Environment(AppSettings.self) private var settings
+    @Environment(\.palette) private var palette
 
     var body: some View {
         PasscodePrompt(title: "Hush is locked", symbol: "lock.fill", store: Passcode.app,
                        allowBiometrics: settings.useBiometrics) {
             lock.isLocked = false
         }
-        .background(settings.theme == .black ? Color.black : Color(.systemBackground))
+        .background(palette.background)
     }
 }
 
 struct PrivacyCover: View {
-    @Environment(AppSettings.self) private var settings
+    @Environment(\.palette) private var palette
     var body: some View {
         ZStack {
-            (settings.theme == .black ? Color.black : Color(.systemBackground)).ignoresSafeArea()
+            palette.background.ignoresSafeArea()
             Image(systemName: "lock.fill").font(.system(size: 40)).foregroundStyle(.tint)
         }
     }

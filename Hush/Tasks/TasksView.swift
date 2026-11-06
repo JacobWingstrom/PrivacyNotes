@@ -23,6 +23,7 @@ enum TaskActions {
 struct TasksView: View {
     let title: String
     @Environment(\.modelContext) private var context
+    @Environment(Router.self) private var router
     @Query(sort: \TaskItem.createdAt, order: .reverse) private var tasks: [TaskItem]
     @State private var filter: TaskFilter = .today
     @State private var listFilter: String?
@@ -58,26 +59,15 @@ struct TasksView: View {
 
     var body: some View {
         List {
-            Section {
-                Picker("Show", selection: $filter) {
-                    ForEach(TaskFilter.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .chipRow()
-                if !lists.isEmpty {
-                    FilterChips(options: [(nil, "All Lists")] + lists.map { ($0, $0) }, selection: $listFilter)
-                        .chipRow()
-                }
+            Picker("Show", selection: $filter) {
+                ForEach(TaskFilter.allCases) { Text($0.label).tag($0) }
             }
+            .pickerStyle(.segmented)
+            .plainRow(top: 12, bottom: 4)
             if filter != .done {
-                Section {
-                    HStack(spacing: 12) {
-                        Image(systemName: "plus.circle.fill").font(.title3).foregroundStyle(.tint)
-                        TextField(filter == .today ? "Add a task for today" : "Add a task", text: $quickTitle)
-                            .submitLabel(.done)
-                            .onSubmit(addQuick)
-                    }
-                }
+                QuickAddField(prompt: filter == .today ? "Add a quick task for today" : "Add a quick task",
+                              text: $quickTitle, onSubmit: addQuick)
+                    .plainRow(top: 8, bottom: 8)
             }
             Section {
                 ForEach(filtered) { task in
@@ -87,44 +77,44 @@ struct TasksView: View {
                                 Label("Delete", systemImage: "trash")
                             }
                         }
+                        .hushRow()
+                }
+            } header: {
+                if !filtered.isEmpty { ListHeader(title: listFilter ?? filter.label) }
+            }
+            if filtered.isEmpty { EmptyMessage(text: emptyText) }
+        }
+        .hushList()
+        .animation(.default, value: filtered.map(\.id))
+        .safeAreaInset(edge: .top, spacing: 0) {
+            SearchHeader(text: $search, prompt: "Search tasks…") {
+                FilterButton(active: listFilter != nil) {
+                    Picker("List", selection: $listFilter) {
+                        Text("All lists").tag(String?.none)
+                        ForEach(lists, id: \.self) { Text($0).tag(Optional($0)) }
+                    }
                 }
             }
         }
-        .hushBackground()
-        .overlay {
-            if filtered.isEmpty && quickTitle.isEmpty {
-                ContentUnavailableView(emptyTitle, systemImage: "checkmark.circle",
-                                       description: Text(emptyMessage))
-                    .allowsHitTesting(false)
-            }
-        }
-        .animation(.default, value: filtered.map(\.id))
-        .searchable(text: $search, prompt: "Search tasks")
         .navigationTitle(title)
         .navigationDestination(item: $newTask) { TaskEditorView(task: $0, isNew: true) }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    let t = TaskItem()
-                    if filter == .today { t.dueDate = Calendar.current.startOfDay(for: .now) }
-                    t.list = listFilter ?? ""
-                    context.insert(t)
-                    newTask = t
-                } label: { Image(systemName: "plus") }
-                .accessibilityLabel("New task")
-            }
+        .onCreate(.tasks) {
+            let t = TaskItem()
+            if filter == .today { t.dueDate = Calendar.current.startOfDay(for: .now) }
+            t.list = listFilter ?? ""
+            context.insert(t)
+            newTask = t
         }
     }
 
-    private var emptyTitle: String {
+    private var emptyText: String {
         switch filter {
-        case .today: "Nothing due today"
-        case .upcoming: "Nothing upcoming"
-        case .all: "No open tasks"
-        case .done: "Nothing completed yet"
+        case .today: "Nothing due today. Nice."
+        case .upcoming: "Nothing upcoming."
+        case .all: "No open tasks. Nice."
+        case .done: "Finished tasks show up here."
         }
     }
-    private var emptyMessage: String { filter == .done ? "Finished tasks show up here." : "Add one above." }
 
     private func addQuick() {
         let text = quickTitle.trimmed
@@ -159,6 +149,7 @@ struct TaskRow: View {
                 }
             }
         }
+        .padding(.vertical, 6)
     }
 
     @ViewBuilder private var meta: some View {
@@ -194,7 +185,7 @@ struct TaskEditorView: View {
     @FocusState private var titleFocused: Bool
 
     var body: some View {
-        Form {
+        HushForm {
             Section {
                 TextField("Title", text: $task.title, axis: .vertical)
                     .font(.headline)
@@ -265,7 +256,6 @@ struct TaskEditorView: View {
                 }
             }
         }
-        .hushBackground()
         .navigationTitle(isNew ? "New Task" : "Task")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { if isNew { titleFocused = true } }

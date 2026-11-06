@@ -1,57 +1,65 @@
 import SwiftUI
+import SwiftData
 
 struct RootView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(LockManager.self) private var lock
+    @Environment(Router.self) private var router
     @Environment(\.scenePhase) private var phase
-    @State private var selection: AppSection?
+    @Environment(\.colorScheme) private var systemScheme
     @State private var showSettings = false
 
     var body: some View {
-        ZStack {
-            NavigationSplitView {
-                List(selection: $selection) {
-                    ForEach(settings.visibleSections) { section in
-                        NavigationLink(value: section) {
-                            Label(settings.title(for: section), systemImage: section.symbol)
-                                .padding(.vertical, settings.compactLists ? 0 : 4)
+        let palette = settings.palette(for: systemScheme)
+        let _ = Appearance.apply(palette)
+        let themeKey = "\(settings.theme.rawValue)-\(systemScheme == .dark ? "d" : "l")"
+
+        ZStack(alignment: .leading) {
+            NavigationStack {
+                SectionView(section: router.section)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItemGroup(placement: .topBarLeading) {
+                            Button {
+                                withAnimation(.snappy(duration: 0.25)) { router.drawerOpen = true }
+                            } label: {
+                                Image(systemName: "line.3.horizontal").font(.title3).foregroundStyle(.primary)
+                            }
+                            .accessibilityLabel("Open menu")
+                            SectionSwitcher()
                         }
+                        ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1) }
                     }
-                }
-                .hushBackground()
-                .navigationTitle("Hush")
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button { showSettings = true } label: { Image(systemName: "gearshape") }
-                            .accessibilityLabel("Settings")
-                    }
-                    if settings.lockEnabled {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button { lock.lockNow() } label: { Image(systemName: "lock") }
-                                .accessibilityLabel("Lock now")
-                        }
-                    }
-                }
-            } detail: {
-                if let selection {
-                    NavigationStack {
-                        SectionView(section: selection)
-                    }
-                    .id(selection)
-                } else {
-                    ContentUnavailableView("Pick a section", systemImage: "sidebar.left")
-                }
+                    .safeAreaInset(edge: .bottom, spacing: 0) { BottomBar(showSettings: $showSettings) }
+            }
+            .id("\(router.section.rawValue)-\(themeKey)")
+
+            if router.drawerOpen {
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea()
+                    .onTapGesture { withAnimation(.snappy(duration: 0.25)) { router.drawerOpen = false } }
+                    .transition(.opacity)
+                DrawerView { showSettings = true }
+                    .transition(.move(edge: .leading))
+                    .zIndex(1)
             }
 
             if lock.isLocked {
-                LockScreen().transition(.opacity)
+                LockScreen().transition(.opacity).zIndex(2)
             } else if settings.blurInSwitcher && phase != .active {
-                PrivacyCover()
+                PrivacyCover().zIndex(2)
             }
         }
+        .environment(\.palette, palette)
         .animation(.easeOut(duration: 0.2), value: lock.isLocked)
-        .sheet(isPresented: $showSettings) { SettingsView() }
-        .onAppear { if selection == nil { selection = settings.effectiveStartSection } }
+        .sheet(isPresented: $showSettings) {
+            SettingsView().environment(\.palette, palette)
+        }
+        .onAppear {
+            if UserDefaults.standard.bool(forKey: "demoOpenDrawer") { router.drawerOpen = true }
+            if UserDefaults.standard.bool(forKey: "demoOpenSettings") { showSettings = true }
+        }
+        .onChange(of: router.section) { _, _ in lock.vaultUnlocked = false }
         .onChange(of: phase) { _, newPhase in
             switch newPhase {
             case .background: lock.didEnterBackground()
@@ -59,15 +67,100 @@ struct RootView: View {
             default: break
             }
         }
-        .onChange(of: selection) { _, _ in lock.vaultUnlocked = false }
         .onChange(of: lock.isLocked) { _, locked in
-            if locked { showSettings = false }
+            if locked { showSettings = false; router.drawerOpen = false }
         }
         .preferredColorScheme(settings.theme.colorScheme)
         .tint(settings.accentColor)
         .fontDesign(settings.fontStyle.design)
         .dynamicTypeSize(settings.textSize.dynamicType)
     }
+}
+
+/// Section icon + name + chevron; tap to jump to another section.
+struct SectionSwitcher: View {
+    @Environment(AppSettings.self) private var settings
+    @Environment(Router.self) private var router
+
+    var body: some View {
+        Menu {
+            ForEach(settings.visibleSections) { s in
+                Button { router.go(s) } label: { Label(settings.title(for: s), systemImage: s.symbol) }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: router.section.symbol).font(.headline).foregroundStyle(.tint)
+                Text(settings.title(for: router.section)).font(.title3.bold()).foregroundStyle(.primary)
+                Image(systemName: "chevron.down").font(.caption.weight(.bold)).foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityLabel("Section: \(settings.title(for: router.section)). Switch section")
+    }
+}
+
+struct BottomBar: View {
+    @Binding var showSettings: Bool
+    @Environment(AppSettings.self) private var settings
+    @Environment(LockManager.self) private var lock
+    @Environment(Router.self) private var router
+    @Environment(\.palette) private var palette
+    @State private var settingPasscode = false
+
+    var body: some View {
+        @Bindable var s = settings
+        HStack(spacing: 24) {
+            Button { showSettings = true } label: { Image(systemName: "gearshape") }
+                .accessibilityLabel("Settings")
+            Menu {
+                Picker("Theme", selection: $s.theme) {
+                    ForEach(ThemeMode.allCases) { Text($0.label).tag($0) }
+                }
+            } label: {
+                Image(systemName: palette.isDark ? "moon" : "sun.max")
+            } primaryAction: {
+                settings.theme = palette.isDark ? .light : .charcoal
+            }
+            .accessibilityLabel("Theme. Tap to switch light or dark, hold for more")
+            Button {
+                if settings.lockEnabled && Passcode.app.isSet { lock.lockNow() } else { settingPasscode = true }
+            } label: {
+                Image(systemName: settings.lockEnabled ? "lock" : "lock.open")
+            }
+            .accessibilityLabel(settings.lockEnabled ? "Lock now" : "Set up app lock")
+            Label("On device", systemImage: "checkmark.shield")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .labelStyle(.titleAndIcon)
+                .accessibilityLabel("Your data is stored only on this device")
+            Spacer(minLength: 0)
+            if showsPlus {
+                Button { router.create() } label: {
+                    Image(systemName: "plus")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 52, height: 52)
+                        .background(Circle().fill(.tint))
+                        .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
+                }
+                .accessibilityLabel("New")
+            }
+        }
+        .font(.title3)
+        .foregroundStyle(.tint)
+        .padding(.leading, 22)
+        .padding(.trailing, 18)
+        .padding(.vertical, 8)
+        .background(palette.background)
+        .overlay(alignment: .top) { Rectangle().fill(palette.border).frame(height: 1) }
+        .sheet(isPresented: $settingPasscode) {
+            PasscodeSetupView { code in
+                Passcode.app.set(code)
+                settings.lockEnabled = true
+            }
+        }
+    }
+
+    private var showsPlus: Bool { !(router.section == .vault && !lock.vaultUnlocked) }
 }
 
 struct SectionView: View {

@@ -59,7 +59,7 @@ final class AppSettings {
 
     init() {
         let d = UserDefaults.standard
-        theme = ThemeMode(rawValue: d.string(forKey: K.theme) ?? "") ?? .system
+        theme = ThemeMode(rawValue: d.string(forKey: K.theme) ?? "") ?? .charcoal
         accentHex = d.string(forKey: K.accent) ?? AccentPreset.all[0].hex
         fontStyle = FontStyle(rawValue: d.string(forKey: K.font) ?? "") ?? .system
         textSize = TextSize(rawValue: d.string(forKey: K.size) ?? "") ?? .standard
@@ -96,6 +96,16 @@ final class AppSettings {
     }
 
     var accentColor: Color { Color(hex: accentHex) }
+
+    func palette(for scheme: ColorScheme) -> Palette {
+        switch theme {
+        case .system: scheme == .dark ? .charcoal : .light
+        case .charcoal: .charcoal
+        case .dark: .dark
+        case .black: .black
+        case .light: .light
+        }
+    }
 
     var visibleSections: [AppSection] {
         let v = sectionOrder.filter { !hiddenSections.contains($0) }
