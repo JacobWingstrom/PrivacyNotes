@@ -205,7 +205,8 @@ struct DevicesList: View {
                 && (kindFilter == nil || d.kind == kindFilter)
                 && (showRetired || d.status != .retired)
         }
-        let hosts = list.filter { $0.hostID == nil || !list.contains(where: { h in h.id == $0.hostID }) }
+        let listIDs = Set(list.map(\.id))
+        let hosts = list.filter { d in d.hostID.map { !listIDs.contains($0) } ?? true }
             .sorted { ($0.kind.tier, $0.displayName) < ($1.kind.tier, $1.displayName) }
         List {
             ForEach(hosts) { d in

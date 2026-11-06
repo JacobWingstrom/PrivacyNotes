@@ -17,7 +17,8 @@ struct ServicesList: View {
         }
         let devices = devicesStored.live(nil)
         let groups = Dictionary(grouping: services) { $0.hostID }
-        let hostIDs = groups.keys.sorted { (devices.first { d in d.id == $0 }?.displayName ?? "~") < (devices.first { d in d.id == $1 }?.displayName ?? "~") }
+        let hostName: (UUID?) -> String = { id in devices.first(where: { $0.id == id })?.displayName ?? "~" }
+        let hostIDs = groups.keys.sorted { a, b in hostName(a) < hostName(b) }
         List {
             Picker("View", selection: $portMap) {
                 Text("By Host").tag(false)
