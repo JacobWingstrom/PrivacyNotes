@@ -91,8 +91,9 @@ final class AppSettings {
         widgetsShowContentWhenLocked = d.bool(forKey: "widgetsWhenLocked")
         theme = ThemeMode(rawValue: d.string(forKey: K.theme) ?? "") ?? .charcoal
         accentHex = d.string(forKey: K.accent) ?? AccentPreset.all[0].hex
-        fontStyle = FontStyle(rawValue: d.string(forKey: K.font) ?? "") ?? .system
-        FontStyle.current = fontStyle
+        let font = FontStyle(rawValue: d.string(forKey: K.font) ?? "") ?? .system
+        fontStyle = font
+        FontStyle.current = font
         textSize = TextSize(rawValue: d.string(forKey: K.size) ?? "") ?? .standard
         compactLists = d.object(forKey: K.compact) as? Bool ?? false
         previewLines = d.object(forKey: K.preview) as? Int ?? 2
