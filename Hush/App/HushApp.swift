@@ -28,15 +28,13 @@ struct HushApp: App {
                 .onAppear {
                     DemoData.seedIfRequested(container.mainContext)
                     TrashActions.purgeExpired(container.mainContext)
+                    ShareInbox.importPending(into: container.mainContext)
                     // Turn habit reminders back on once a vacation ends.
                     for h in (try? container.mainContext.fetch(FetchDescriptor<Habit>())) ?? [] where h.remind { Reminders.sync(h) }
                 }
-                .onOpenURL { url in
-                    // hush://new/<section> and hush://open/<section> from widgets
-                    guard url.scheme == "hush", let section = AppSection(rawValue: url.lastPathComponent) else { return }
-                    if url.host() == "new" { router.startNew(in: section) } else { router.go(section) }
-                }
+                .onOpenURL { url in router.handle(url) }
                 .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { ShareInbox.importPending(into: container.mainContext) }
                     if phase == .background {
                         settings.syncWidgetPrivacy()
                         WidgetCenter.shared.reloadAllTimelines()

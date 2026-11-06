@@ -52,6 +52,13 @@ struct RootView: View {
         }
         .environment(\.palette, palette)
         .animation(.easeOut(duration: 0.2), value: lock.isLocked)
+        .sheet(isPresented: Binding(get: { router.showFocus }, set: { router.showFocus = $0 })) { FocusTimerView().environment(\.palette, palette) }
+        .sheet(isPresented: Binding(get: { router.showMemo }, set: { router.showMemo = $0 })) {
+            MemoRecorderView { data, time in
+                Attach.addMemo(data, duration: time, noteID: nil, into: Storage.shared.mainContext)
+            }
+            .environment(\.palette, palette)
+        }
         .sheet(isPresented: $showSettings) {
             SettingsView()
                 .environment(\.palette, palette)

@@ -11,6 +11,13 @@ struct HushWidgetBundle: WidgetBundle {
         HabitsWidget()
         QuickAddWidget()
         FocusLiveActivity()
+        if #available(iOS 18.0, *) {
+            NewNoteControl()
+            NewTaskControl()
+            TodaysNoteControl()
+            FocusControl()
+            MemoControl()
+        }
     }
 }
 
@@ -106,7 +113,7 @@ struct TodayWidget: Widget {
         }
         .configurationDisplayName("Today")
         .description("Tasks due today.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular, .accessoryInline])
     }
 }
 
@@ -115,7 +122,20 @@ struct TodayView: View {
     @Environment(\.widgetFamily) private var family
 
     var body: some View {
-        if entry.hidden { LockedView() } else {
+        if entry.hidden {
+            if family == .accessoryInline || family == .accessoryCircular { Image(systemName: "lock.fill") } else { LockedView() }
+        } else if family == .accessoryInline {
+            Label(entry.taskCount == 0 ? "No tasks today" : "\(entry.taskCount) tasks · \(entry.tasks.first?.title ?? "")", systemImage: "checkmark.circle")
+        } else if family == .accessoryCircular {
+            ZStack {
+                AccessoryWidgetBackground()
+                VStack(spacing: 0) {
+                    Image(systemName: "checkmark.circle").font(.caption)
+                    Text("\(entry.taskCount)").font(.title3.bold())
+                }
+            }
+            .widgetURL(URL(string: "hush://open/tasks"))
+        } else {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(entry.accent)
@@ -147,7 +167,7 @@ struct HabitsWidget: Widget {
         }
         .configurationDisplayName("Habits")
         .description("Check off today's habits right from your Home Screen.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular])
     }
 }
 
@@ -156,7 +176,27 @@ struct HabitsWidgetView: View {
     @Environment(\.widgetFamily) private var family
 
     var body: some View {
-        if entry.hidden { LockedView() } else {
+        if entry.hidden {
+            if family == .accessoryCircular { Image(systemName: "lock.fill") } else { LockedView() }
+        } else if family == .accessoryCircular {
+            let done = entry.habits.filter(\.done).count
+            Gauge(value: Double(done), in: 0...Double(max(entry.habits.count, 1))) {
+                Image(systemName: "flame")
+            } currentValueLabel: {
+                Text("\(done)/\(entry.habits.count)")
+            }
+            .gaugeStyle(.accessoryCircularCapacity)
+            .widgetURL(URL(string: "hush://open/habits"))
+        } else if family == .accessoryRectangular {
+            VStack(alignment: .leading, spacing: 2) {
+                Label("Habits \(entry.habits.filter(\.done).count)/\(entry.habits.count)", systemImage: "flame").font(.headline)
+                ForEach(entry.habits.filter { !$0.done }.prefix(2)) { h in
+                    Text("○ \(h.name)").font(.caption).lineLimit(1)
+                }
+                if entry.habits.allSatisfy(\.done) && !entry.habits.isEmpty { Text("All done today").font(.caption) }
+            }
+            .widgetURL(URL(string: "hush://open/habits"))
+        } else {
             let limit = family == .systemSmall ? 3 : (family == .systemMedium ? 4 : 9)
             let done = entry.habits.filter(\.done).count
             VStack(alignment: .leading, spacing: 6) {
@@ -286,4 +326,44 @@ struct FocusLiveActivity: Widget {
         let s = Int(t)
         return String(format: "%d:%02d", s / 60, s % 60)
     }
+}
+
+
+// MARK: - Control Center (iOS 18+)
+
+@available(iOS 18.0, *)
+private struct HushControl {
+    static func button(_ kind: String, _ name: LocalizedStringResource, _ symbol: String, _ url: String) -> some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: kind) {
+            ControlWidgetButton(action: OpenURLIntent(URL(string: url)!)) {
+                Label(name, systemImage: symbol)
+            }
+        }
+        .displayName(name)
+    }
+}
+
+@available(iOS 18.0, *)
+struct NewNoteControl: ControlWidget {
+    var body: some ControlWidgetConfiguration { HushControl.button("HushNewNote", "New Note", "square.and.pencil", "hush://new/notes") }
+}
+
+@available(iOS 18.0, *)
+struct NewTaskControl: ControlWidget {
+    var body: some ControlWidgetConfiguration { HushControl.button("HushNewTask", "New Task", "checkmark.circle", "hush://new/tasks") }
+}
+
+@available(iOS 18.0, *)
+struct TodaysNoteControl: ControlWidget {
+    var body: some ControlWidgetConfiguration { HushControl.button("HushDaily", "Today's Note", "sun.max", "hush://daily") }
+}
+
+@available(iOS 18.0, *)
+struct FocusControl: ControlWidget {
+    var body: some ControlWidgetConfiguration { HushControl.button("HushFocus", "Focus Timer", "timer", "hush://focus") }
+}
+
+@available(iOS 18.0, *)
+struct MemoControl: ControlWidget {
+    var body: some ControlWidgetConfiguration { HushControl.button("HushMemo", "Voice Memo", "mic", "hush://memo") }
 }

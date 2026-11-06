@@ -166,9 +166,11 @@ struct NotesListView: View {
             Button("Cancel", role: .cancel) {}
         }
         .onCreate(.notes) { if folder == nil { create() } }
+        .onChange(of: router.dailyRequest) { if folder == nil, router.consumeDaily() { newNote = DailyNote.open(in: context) } }
         .onAppear {
             if let t = router.noteTag { tagFilter = t; router.noteTag = nil }
             if UserDefaults.standard.bool(forKey: "demoGraph"), folder == nil { showGraph = true }
+            if folder == nil, router.dailyRequest > 0, newNote == nil, router.consumeDaily() { newNote = DailyNote.open(in: context) }
             if folder == nil, let fid = router.noteFolder {
                 router.noteFolder = nil
                 openFolder = folders.first { $0.id == fid }

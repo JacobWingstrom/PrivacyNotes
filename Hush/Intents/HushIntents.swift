@@ -88,6 +88,43 @@ struct AddJournalIntent: AppIntent {
     }
 }
 
+/// Opens Hush at a specific place — great on the Action Button or Back Tap.
+struct OpenHushIntent: AppIntent {
+    static var title: LocalizedStringResource = "Open Hush"
+    static var description = IntentDescription("Opens Hush straight to a new note, task, today's note, a voice memo or the focus timer.")
+    static var openAppWhenRun: Bool = true
+
+    @Parameter(title: "Open") var destination: HushDestination
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        if let url = URL(string: destination.url) { Router.shared?.handle(url) }
+        return .result()
+    }
+}
+
+enum HushDestination: String, AppEnum {
+    case newNote, newTask, todaysNote, voiceMemo, focusTimer, newJournal, home
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Destination"
+    static var caseDisplayRepresentations: [HushDestination: DisplayRepresentation] = [
+        .newNote: "New Note", .newTask: "New Task", .todaysNote: "Today's Note", .voiceMemo: "Voice Memo",
+        .focusTimer: "Focus Timer", .newJournal: "Journal Entry", .home: "Home",
+    ]
+
+    var url: String {
+        switch self {
+        case .newNote: "hush://new/notes"
+        case .newTask: "hush://new/tasks"
+        case .todaysNote: "hush://daily"
+        case .voiceMemo: "hush://memo"
+        case .focusTimer: "hush://focus"
+        case .newJournal: "hush://new/journals"
+        case .home: "hush://open/home"
+        }
+    }
+}
+
 struct HushShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: AddTaskIntent(), phrases: [
@@ -99,6 +136,9 @@ struct HushShortcuts: AppShortcutsProvider {
         AppShortcut(intent: LogHabitIntent(), phrases: [
             "Log a habit in \(.applicationName)", "Check off a habit in \(.applicationName)",
         ], shortTitle: "Log Habit", systemImageName: "flame")
+        AppShortcut(intent: OpenHushIntent(), phrases: [
+            "Open \(.applicationName)", "Open \(\.$destination) in \(.applicationName)",
+        ], shortTitle: "Open Hush", systemImageName: "arrow.up.forward.app")
         AppShortcut(intent: AddJournalIntent(), phrases: [
             "Add a journal entry in \(.applicationName)", "Journal in \(.applicationName)",
         ], shortTitle: "Journal", systemImageName: "book.closed")

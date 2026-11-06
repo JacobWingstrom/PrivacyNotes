@@ -14,7 +14,30 @@ final class Router {
     /// Set when "+" on Home or All picks another section; that section creates an item when it appears.
     var pendingCreate: AppSection?
 
-    init(section: AppSection) { self.section = section }
+    /// Asks for the focus timer, a voice memo or today's note from outside the app.
+    var showFocus = false
+    var showMemo = false
+    var dailyRequest = 0
+
+    static weak var shared: Router?
+
+    init(section: AppSection) {
+        self.section = section
+        Router.shared = self
+    }
+
+    /// hush://new/<section>, hush://open/<section>, hush://daily, hush://focus, hush://memo
+    func handle(_ url: URL) {
+        guard url.scheme == "hush" else { return }
+        switch url.host() {
+        case "new": if let s = AppSection(rawValue: url.lastPathComponent) { startNew(in: s) }
+        case "open": if let s = AppSection(rawValue: url.lastPathComponent) { go(s) }
+        case "daily": go(.notes); dailyRequest += 1
+        case "focus": showFocus = true
+        case "memo": showMemo = true
+        default: break
+        }
+    }
 
     func go(_ s: AppSection) {
         section = s
@@ -22,6 +45,14 @@ final class Router {
     }
 
     func create() { createRequest += 1 }
+
+    @ObservationIgnored private var dailyHandled = 0
+    /// True once per daily request, so a freshly opened Notes list handles it exactly once.
+    func consumeDaily() -> Bool {
+        guard dailyRequest > dailyHandled else { return false }
+        dailyHandled = dailyRequest
+        return true
+    }
 
     func startNew(in s: AppSection) {
         pendingCreate = s

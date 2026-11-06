@@ -6,7 +6,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "2.4.0"
+    MARKETING_VERSION: "2.5.0"
     CURRENT_PROJECT_VERSION: "1"
     TARGETED_DEVICE_FAMILY: "1"
 targets:
@@ -16,6 +16,7 @@ targets:
     sources: [Hush]
     dependencies:
       - target: HushWidgets
+      - target: HushShare
     info:
       path: Config/Hush-Info.plist
       properties:
@@ -98,3 +99,36 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         SKIP_INSTALL: YES
         CODE_SIGNING_ALLOWED: NO
+  HushShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Share
+      - Hush/Models
+      - Hush/Shared
+      - Hush/Security/Keychain.swift
+      - Hush/Security/DataCrypto.swift
+    info:
+      path: Config/HushShare-Info.plist
+      properties:
+        CFBundleDisplayName: Save to Hush
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsImageWithMaxCount: 10
+              NSExtensionActivationSupportsFileWithMaxCount: 10
+    entitlements:
+      path: Config/HushShare.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.jacobwingstrom.hush]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jacobwingstrom.hush.share
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
+        CODE_SIGNING_ALLOWED: NO
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: SHARE_EXTENSION
