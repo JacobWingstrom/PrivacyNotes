@@ -604,7 +604,7 @@ enum Models {
         Note.self, TaskItem.self, CalendarEvent.self, JournalEntry.self, Drawing.self,
         VaultItem.self, StoredFile.self, Contact.self, Bookmark.self,
         Folder.self, NoteVersion.self, NoteTemplate.self, Habit.self,
-    ] + HomelabModels.all
+    ] + HomelabModels.all + BoardModels.all
 }
 
 /// Item icons are SF Symbol names. Older emoji values fall back to a default symbol.

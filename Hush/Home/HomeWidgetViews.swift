@@ -48,6 +48,7 @@ struct HomeWidgetView: View {
         case .greeting: GreetingWidget(widget: widget)
         case .quickAdd: QuickAddWidgetView(widget: widget)
         case .tasks: TasksWidgetView(widget: widget)
+        case .board: BoardWidgetView(widget: widget)
         case .habits: HabitsHomeWidget(widget: widget)
         case .calendar: CalendarWidgetView(widget: widget)
         case .agenda: AgendaWidgetView(widget: widget)
@@ -218,6 +219,62 @@ struct TasksWidgetView: View {
             }
             if list.count > shown.count {
                 Text("+ \(list.count - shown.count) more").font(.hush(.caption)).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+// MARK: - Board
+
+struct BoardWidgetView: View {
+    let widget: HomeWidget
+    @Query(sort: \Board.sortIndex) private var boards: [Board]
+    @Query(sort: \BoardCard.order) private var cards: [BoardCard]
+    @Environment(\.palette) private var palette
+
+    var body: some View {
+        let board = boards.first { $0.id == widget.boardID && $0.deletedAt == nil } ?? boards.first { $0.deletedAt == nil && !$0.archived }
+        WidgetFrame(widget: widget, openSection: .boards) {
+            if let board {
+                let mine = cards.filter { $0.boardID == board.id && $0.deletedAt == nil }
+                if let colID = widget.columnID, let col = board.columns.first(where: { $0.id == colID }) {
+                    let list = mine.filter { $0.columnID == col.id }
+                    Text("\(board.title) · \(col.name)").font(.hush(.caption)).foregroundStyle(.secondary)
+                    if list.isEmpty { Text("No cards here.").font(.hush(.subheadline)).foregroundStyle(.secondary) }
+                    ForEach(list.prefix(widget.size == .large ? 10 : widget.limit)) { c in
+                        NavigationLink { BoardView(board: board) } label: {
+                            HStack(spacing: 8) {
+                                Circle().fill(c.color ?? Color.accentColor).frame(width: 7, height: 7)
+                                Text(c.title).lineLimit(1)
+                                Spacer(minLength: 0)
+                                if let d = c.dueDate { Text(DateText.relativeDay(d)).font(.hush(.caption)).foregroundStyle(c.isOverdue ? Color.red : Color.secondary) }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } else {
+                    NavigationLink { BoardView(board: board) } label: {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(board.title).font(.hush(.headline))
+                            HStack(alignment: .bottom, spacing: 6) {
+                                ForEach(board.columns) { col in
+                                    let n = mine.filter { $0.columnID == col.id }.count
+                                    VStack(spacing: 4) {
+                                        Text("\(n)").font(.hush(.headline)).monospacedDigit()
+                                        RoundedRectangle(cornerRadius: 3)
+                                            .fill((NoteColor(rawValue: col.colorName)?.color ?? Color.accentColor).opacity(0.8))
+                                            .frame(height: CGFloat(6 + min(n, 12) * 4))
+                                        Text(col.name).font(.hush(.caption2)).foregroundStyle(.secondary).lineLimit(1)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                }
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            } else {
+                Text("Create a board in Boards first.").font(.hush(.subheadline)).foregroundStyle(.secondary)
             }
         }
     }

@@ -325,6 +325,7 @@ struct WidgetSettingsView: View {
     @Query private var folders: [Folder]
     @Query(sort: \Note.updatedAt, order: .reverse) private var notes: [Note]
     @Query private var bookmarks: [Bookmark]
+    @Query(sort: \Board.sortIndex) private var boards: [Board]
     @State private var pickingIcon = false
 
     private var index: Int? { settings.homeWidgets.firstIndex { $0.id == widgetID } }
@@ -419,6 +420,19 @@ struct WidgetSettingsView: View {
                 }
                 Toggle("Show Tasks Finished Today", isOn: w.showCompleted)
                 limitStepper(w)
+            }
+        case .board:
+            Section("Board") {
+                Picker("Board", selection: w.boardID) {
+                    Text("First board").tag(UUID?.none)
+                    ForEach(boards.filter { $0.deletedAt == nil }) { Text($0.title).tag(Optional($0.id)) }
+                }
+                let chosen = boards.first { $0.id == w.wrappedValue.boardID } ?? boards.first { $0.deletedAt == nil }
+                Picker("Show", selection: w.columnID) {
+                    Text("All Columns (summary)").tag(UUID?.none)
+                    ForEach(chosen?.columns ?? []) { Text("Cards in \($0.name)").tag(Optional($0.id)) }
+                }
+                if w.wrappedValue.columnID != nil { limitStepper(w) }
             }
         case .habits:
             Section {

@@ -146,6 +146,23 @@ enum DemoData {
         rb.repeatRaw = "monthly"
         rb.nextDue = Calendar.current.date(byAdding: .day, value: -1, to: .now)
         ctx.insert(rb)
+        let board = Board(title: "Homelab Projects")
+        BoardTemplates.apply(BoardTemplates.all.first { $0.id == "homelab" }!, to: board)
+        board.colorName = "purple"
+        ctx.insert(board)
+        let cols = board.columns, labs = board.labels
+        for (i, (title, col, label, color)) in [("Set up Tailscale", 0, 0, "none"), ("Add 10G NIC to NAS", 1, 3, "orange"),
+                                                 ("Move cameras to IoT VLAN", 2, 0, "blue"), ("Grafana dashboard", 2, 2, "none"),
+                                                 ("Test UPS shutdown script", 3, 3, "red"), ("Replace old switch", 4, 0, "green")].enumerated() {
+            let c = BoardCard(boardID: board.id, columnID: cols[col].id, title: title)
+            c.order = Double(i)
+            c.labelIDs = [labs[label].id]
+            c.colorName = color
+            if i == 1 { c.checklist = [Subtask(title: "Order card", done: true), Subtask(title: "Install"), Subtask(title: "Set MTU 9000")] }
+            if i == 2 { c.dueDate = Calendar.current.date(byAdding: .day, value: 2, to: .now) }
+            if col == 4 { c.completedAt = .now }
+            ctx.insert(c)
+        }
         let diagram = LabDiagram(title: "Physical Layout", layer: "physical")
         let built = DiagramBuilder.build(layer: "physical", devices: [modem, fw, sw, ap, pve, nas, ups], links: (try? ctx.fetch(FetchDescriptor<LabLink>())) ?? [],
                                          services: [], subnets: [])

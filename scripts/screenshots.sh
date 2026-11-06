@@ -25,7 +25,7 @@ shot() {
   xcrun simctl io "$UDID" screenshot "shots/$name.png" >/dev/null
   echo "captured $name"
 }
-for s in home all notes tasks habits calendar journals drawings vault files contacts bookmarks; do
+for s in home all notes tasks boards habits calendar journals drawings vault files contacts bookmarks; do
   shot "$s" -startSection "$s"
 done
 shot drawer -startSection notes -demoOpenDrawer YES
@@ -44,3 +44,4 @@ shot lab-devices -startSection homelab -labTab devices
 shot lab-diagram -startSection homelab -labTab diagrams -demoOpenDiagram YES
 shot lab-network -startSection homelab -labTab network
 shot lab-services -startSection homelab -labTab services
+shot board-open -startSection boards -demoOpenBoard YES

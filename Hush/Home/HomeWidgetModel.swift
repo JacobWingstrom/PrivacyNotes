@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum HomeWidgetKind: String, Codable, CaseIterable, Identifiable {
-    case greeting, quickAdd, tasks, habits, calendar, agenda, notes, note, journal, mood, stats, bookmarks, contacts, countdown, files
+    case greeting, quickAdd, tasks, board, habits, calendar, agenda, notes, note, journal, mood, stats, bookmarks, contacts, countdown, files
 
     var id: String { rawValue }
 
@@ -10,6 +10,7 @@ enum HomeWidgetKind: String, Codable, CaseIterable, Identifiable {
         case .greeting: "Greeting"
         case .quickAdd: "Quick Add"
         case .tasks: "Tasks"
+        case .board: "Board"
         case .habits: "Habits"
         case .calendar: "Calendar"
         case .agenda: "Agenda"
@@ -30,6 +31,7 @@ enum HomeWidgetKind: String, Codable, CaseIterable, Identifiable {
         case .greeting: "sun.horizon"
         case .quickAdd: "plus.square"
         case .tasks: "checkmark.circle"
+        case .board: "rectangle.split.3x1"
         case .habits: "flame"
         case .calendar: "calendar"
         case .agenda: "list.bullet.rectangle"
@@ -50,6 +52,7 @@ enum HomeWidgetKind: String, Codable, CaseIterable, Identifiable {
         case .greeting: "Good morning, today's date and an optional message."
         case .quickAdd: "Type to add a task or note, or tap buttons to start anything."
         case .tasks: "Today, upcoming, overdue or a specific list — with check-off."
+        case .board: "A Kanban board's columns at a glance, or the cards in one column."
         case .habits: "Check off habits as a list or as progress rings."
         case .calendar: "A month or week view with dots on busy days."
         case .agenda: "Events, tasks and iPhone calendar items for the next days."
@@ -123,6 +126,9 @@ struct HomeWidget: Codable, Identifiable, Hashable {
     var tag = ""
     var noteStyle = "list"           // list, cards
     var noteID: UUID? = nil
+    // Board
+    var boardID: UUID? = nil
+    var columnID: UUID? = nil
     // Greeting
     var message = ""
     var showDate = true
@@ -151,6 +157,7 @@ struct HomeWidget: Codable, Identifiable, Hashable {
 
     // Tolerant decoding so new settings never break saved layouts.
     enum CodingKeys: String, CodingKey {
+        case boardID, columnID
         case id, kind, size, title, symbol, tintHex, showHeader, limit, taskScope, listName, showCompleted, habitIDs, habitStyle,
              calendarStyle, days, includeTasks, includePhoneEvents, noteScope, folderID, tag, noteStyle, noteID, message, showDate,
              stats, quickKinds, showQuickField, favoritesOnly, targetDate
@@ -180,6 +187,8 @@ struct HomeWidget: Codable, Identifiable, Hashable {
         tag = (try? c.decode(String.self, forKey: .tag)) ?? ""
         noteStyle = (try? c.decode(String.self, forKey: .noteStyle)) ?? "list"
         noteID = try? c.decode(UUID.self, forKey: .noteID)
+        boardID = try? c.decode(UUID.self, forKey: .boardID)
+        columnID = try? c.decode(UUID.self, forKey: .columnID)
         message = (try? c.decode(String.self, forKey: .message)) ?? ""
         showDate = (try? c.decode(Bool.self, forKey: .showDate)) ?? true
         stats = (try? c.decode([String].self, forKey: .stats)) ?? ["notes", "openTasks", "habitsToday", "journalStreak"]

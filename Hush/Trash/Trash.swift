@@ -39,6 +39,8 @@ enum TrashActions {
         }
         purge(Note.self); purge(TaskItem.self); purge(CalendarEvent.self); purge(JournalEntry.self)
         purge(Drawing.self); purge(StoredFile.self); purge(Contact.self); purge(Bookmark.self); purge(Habit.self)
+        purge(Board.self); purge(BoardCard.self); purge(LabDevice.self); purge(LabService.self); purge(LabSubnet.self)
+        purge(LabRack.self); purge(LabLink.self); purge(LabDiagram.self); purge(Runbook.self)
         try? ctx.save()
     }
 }
@@ -54,6 +56,15 @@ struct TrashView: View {
     @Query private var contacts: [Contact]
     @Query private var bookmarks: [Bookmark]
     @Query private var habits: [Habit]
+    @Query private var boards: [Board]
+    @Query private var cards: [BoardCard]
+    @Query private var labDevices: [LabDevice]
+    @Query private var labServices: [LabService]
+    @Query private var labSubnets: [LabSubnet]
+    @Query private var labRacks: [LabRack]
+    @Query private var labLinks: [LabLink]
+    @Query private var labDiagrams: [LabDiagram]
+    @Query private var runbooks: [Runbook]
     @State private var confirmEmpty = false
 
     private struct Row: Identifiable {
@@ -82,6 +93,15 @@ struct TrashView: View {
         add(contacts, "person.crop.rectangle") { $0.displayName }
         add(bookmarks, "bookmark") { $0.displayTitle }
         add(habits, "flame") { $0.name }
+        add(boards, "rectangle.split.3x1") { $0.title }
+        add(cards, "rectangle.portrait") { $0.title }
+        add(labDevices, "server.rack") { $0.displayName }
+        add(labServices, "app.connected.to.app.below.fill") { $0.name }
+        add(labSubnets, "network") { $0.name.isEmpty ? $0.cidr : $0.name }
+        add(labRacks, "square.stack.3d.down.right") { $0.name }
+        add(labLinks, "cable.connector") { _ in "Cable" }
+        add(labDiagrams, "point.3.connected.trianglepath.dotted") { $0.title }
+        add(runbooks, "list.bullet.clipboard") { $0.title }
         return r.sorted { $0.deletedAt > $1.deletedAt }
     }
 

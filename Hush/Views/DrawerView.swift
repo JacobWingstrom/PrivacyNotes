@@ -34,6 +34,8 @@ struct DrawerView: View {
     private var bookmarks: [Bookmark] { bookmarksStored.live(bookmarksSpace.spaceFilter) }
     @Query private var habitsStored: [Habit]
     @Query private var foldersStored: [Folder]
+    @Query private var boardsStored: [Board]
+    private var boards: [Board] { boardsStored.live(settings.spaceFilter).filter { !$0.archived } }
     @Query private var trashNotes: [Note]
     @Query private var trashTasks: [TaskItem]
     @Query private var trashOther: [JournalEntry]
@@ -63,6 +65,7 @@ struct DrawerView: View {
         case .drawings: return drawings.count
         case .files: return files.count
         case .homelab: return nil
+        case .boards: return boards.count
         case .journals: return journals.count
         case .calendar:
             let start = Calendar.current.startOfDay(for: .now)
