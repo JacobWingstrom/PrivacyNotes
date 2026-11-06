@@ -139,6 +139,7 @@ struct HabitCharts: View {
                 }
             }
             .chartXAxis { AxisMarks(values: .stride(by: .day, count: range > 30 ? 14 : (range > 14 ? 7 : 3))) { AxisValueLabel(format: .dateTime.month(.abbreviated).day()) } }
+            .chartYScale(domain: .automatic(includesZero: !(habit.isMeasure && !habit.sumEntries)))
             .frame(height: 180)
 
             WeekdayBars(habit: habit, tint: tint)
