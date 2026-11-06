@@ -76,7 +76,7 @@ enum MarkdownStyler {
         let full = NSRange(location: 0, length: text.length)
         let mono = UIFont.monospacedSystemFont(ofSize: base.pointSize * 0.92, weight: .regular)
         storage.beginEditing()
-        storage.setAttributes([.font: base, .foregroundColor: colors.text], range: full)
+        storage.setAttributes([.font: base, .foregroundColor: colors.text, .paragraphStyle: EditorParagraph.style], range: full)
 
         func each(_ re: NSRegularExpression, _ body: (NSTextCheckingResult) -> Void) {
             re.enumerateMatches(in: storage.string, range: full) { m, _, _ in if let m { body(m) } }
@@ -207,7 +207,8 @@ struct MarkdownEditor: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeUIView(context: Context) -> UITextView {
-        let tv = UITextView()
+        let tv = HushTextView()
+        tv.sideInset = horizontalInset
         tv.backgroundColor = .clear
         tv.delegate = context.coordinator
         tv.alwaysBounceVertical = true
@@ -215,9 +216,10 @@ struct MarkdownEditor: UIViewRepresentable {
         tv.textContainerInset = UIEdgeInsets(top: 8, left: horizontalInset, bottom: 120, right: horizontalInset)
         tv.textContainer.lineFragmentPadding = 0
         tv.adjustsFontForContentSizeCategory = true
-        tv.autocorrectionType = .default
-        tv.smartDashesType = .no
-        tv.smartQuotesType = .no
+        tv.autocorrectionType = EditorPrefs.autocorrect ? .default : .no
+        tv.spellCheckingType = EditorPrefs.spellCheck ? .default : .no
+        tv.smartDashesType = EditorPrefs.smartPunctuation ? .yes : .no
+        tv.smartQuotesType = EditorPrefs.smartPunctuation ? .yes : .no
         tv.text = text
         tv.inputAccessoryView = context.coordinator.makeToolbar()
         let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.tapped(_:)))
@@ -266,7 +268,7 @@ struct MarkdownEditor: UIViewRepresentable {
 
         var baseFont: UIFont {
             let body = UIFont.preferredFont(forTextStyle: .body)
-            return parent.fontDesign.uiFont(size: body.pointSize * parent.fontScale)
+            return parent.fontDesign.uiFont(size: body.pointSize * parent.fontScale * EditorPrefs.fontScale)
         }
 
         func restyle(_ tv: UITextView) {
@@ -274,7 +276,7 @@ struct MarkdownEditor: UIViewRepresentable {
             let sel = tv.selectedRange
             let colors = MarkdownStyler.Colors(palette: parent.palette, accent: parent.accent)
             MarkdownStyler.style(tv.textStorage, base: baseFont, colors: colors, highlight: parent.highlight)
-            tv.typingAttributes = [.font: baseFont, .foregroundColor: colors.text]
+            tv.typingAttributes = [.font: baseFont, .foregroundColor: colors.text, .paragraphStyle: EditorParagraph.style]
             tv.tintColor = parent.accent
             tv.selectedRange = sel
         }
@@ -282,6 +284,11 @@ struct MarkdownEditor: UIViewRepresentable {
         func textViewDidChange(_ tv: UITextView) {
             parent.text = tv.text
             restyle(tv)
+            (tv as? HushTextView)?.centerCaretIfNeeded()
+        }
+
+        func textViewDidChangeSelection(_ tv: UITextView) {
+            (tv as? HushTextView)?.centerCaretIfNeeded()
         }
 
         func textView(_ tv: UITextView, shouldChangeTextIn range: NSRange, replacementText repl: String) -> Bool {
@@ -504,5 +511,38 @@ enum CodeHighlighter {
         case "json": break
         default: paint(re("(^|\\s)#.*$"), comment)
         }
+    }
+}
+
+
+enum EditorParagraph {
+    static var style: NSParagraphStyle {
+        let p = NSMutableParagraphStyle()
+        p.lineSpacing = EditorPrefs.lineSpacing
+        p.paragraphSpacing = EditorPrefs.paragraphSpacing
+        return p
+    }
+}
+
+/// Keeps lines to a comfortable width and, in typewriter mode, the current line centered.
+final class HushTextView: UITextView {
+    var sideInset: CGFloat = 0
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let maxWidth = EditorPrefs.maxWidth
+        var side = sideInset
+        if maxWidth > 0, bounds.width > maxWidth + sideInset * 2 { side = (bounds.width - maxWidth) / 2 }
+        let bottom: CGFloat = EditorPrefs.typewriter ? bounds.height / 2 : 120
+        if abs(textContainerInset.left - side) > 0.5 || abs(textContainerInset.bottom - bottom) > 0.5 {
+            textContainerInset = UIEdgeInsets(top: 8, left: side, bottom: bottom, right: side)
+        }
+    }
+
+    func centerCaretIfNeeded() {
+        guard EditorPrefs.typewriter, isFirstResponder, let end = selectedTextRange?.end else { return }
+        let caret = caretRect(for: end)
+        let target = max(caret.midY - bounds.height * 0.4, -adjustedContentInset.top)
+        if abs(contentOffset.y - target) > 4 { setContentOffset(CGPoint(x: 0, y: target), animated: true) }
     }
 }

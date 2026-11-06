@@ -28,6 +28,8 @@ struct HushApp: App {
                 .onAppear {
                     DemoData.seedIfRequested(container.mainContext)
                     TrashActions.purgeExpired(container.mainContext)
+                    // Turn habit reminders back on once a vacation ends.
+                    for h in (try? container.mainContext.fetch(FetchDescriptor<Habit>())) ?? [] where h.remind { Reminders.sync(h) }
                 }
                 .onOpenURL { url in
                     // hush://new/<section> and hush://open/<section> from widgets

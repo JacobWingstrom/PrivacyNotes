@@ -56,6 +56,12 @@ struct JournalView: View {
         .safeAreaInset(edge: .top, spacing: 0) { SearchHeader(text: $search, prompt: "Search journal…") }
         .navigationTitle(title)
         .navigationDestination(item: $newEntry) { JournalEditorView(entry: $0, isNew: true) }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink { MoodInsightsView() } label: { Image(systemName: "chart.xyaxis.line") }
+                    .accessibilityLabel("Mood insights")
+            }
+        }
         .onCreate(.journals) {
             let e = JournalEntry()
             context.insert(e)

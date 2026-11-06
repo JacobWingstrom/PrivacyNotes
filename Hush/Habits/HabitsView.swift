@@ -10,6 +10,8 @@ struct HabitsView: View {
     @State private var editing: Habit?
     @State private var showArchived = false
     @State private var todayOnly = false
+    @State private var vacation = false
+    @State private var demoHabit: Habit?
 
     private var habits: [Habit] { habitsStored.live(settings.spaceFilter) }
 
@@ -20,6 +22,18 @@ struct HabitsView: View {
         let due = active.filter { $0.isScheduled(on: today) }
         let doneCount = due.filter { $0.isDone(on: today) }.count
         List {
+            if HabitVacation.isActive {
+                Button { vacation = true } label: {
+                    Label("Vacation mode until \(HabitVacation.until?.formatted(date: .abbreviated, time: .omitted) ?? "") — habits are paused", systemImage: "beach.umbrella")
+                        .font(.hush(.subheadline))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .background(Color.orange.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+                        .foregroundStyle(.orange)
+                }
+                .buttonStyle(.plain)
+                .plainRow(top: 12, bottom: 0)
+            }
             if !active.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -66,6 +80,8 @@ struct HabitsView: View {
                 FilterButton(active: todayOnly || showArchived) {
                     Toggle("Only habits due today", isOn: $todayOnly)
                     Toggle("Show archived", isOn: $showArchived)
+                    Divider()
+                    Button { vacation = true } label: { Label("Vacation Mode…", systemImage: "beach.umbrella") }
                 }
             }
             .padding(.horizontal, 14)
@@ -80,6 +96,9 @@ struct HabitsView: View {
             editing = h
         }
         .sheet(item: $editing) { h in NavigationStack { HabitEditor(habit: h) } }
+        .sheet(isPresented: $vacation) { VacationSheet() }
+        .navigationDestination(item: $demoHabit) { HabitDetailView(habit: $0) }
+        .onAppear { if UserDefaults.standard.bool(forKey: "demoOpenHabit"), demoHabit == nil { demoHabit = habits.first { $0.isMeasure } } }
     }
 }
 
@@ -106,6 +125,12 @@ struct HabitRow: View {
                         Label("\(habit.streak)", systemImage: "flame.fill").font(.hush(.caption).bold()).foregroundStyle(.orange)
                     }
                     if habit.remind { Image(systemName: "bell").font(.hush(.caption2)).foregroundStyle(.secondary) }
+                    if habit.isSkipped(on: today) { Text("Skipped").font(.hush(.caption2)).foregroundStyle(.secondary) }
+                }
+                if habit.isMeasure {
+                    Text([habit.value(on: today).map { "\($0.formatted(.number.precision(.fractionLength(0...1)))) \(habit.unit)" } ?? "Not logged today",
+                          habit.goalValue > 0 ? "goal \(habit.formattedGoal)" : ""].filter { !$0.isEmpty }.joined(separator: " · "))
+                        .font(.hush(.caption)).foregroundStyle(.secondary)
                 }
                 WeekStrip(habit: habit, tint: tint)
             }
@@ -150,12 +175,43 @@ struct HabitCheck: View {
     let date: Date
     let tint: Color
     var size: CGFloat = 36
+    @State private var logging = false
 
     var body: some View {
+        if habit.isMeasure { measureButton } else { checkButton }
+    }
+
+    private var measureButton: some View {
+        let v = habit.value(on: date)
+        let fraction: Double = {
+            guard let v, habit.goalValue > 0 else { return v == nil ? 0 : 1 }
+            return habit.goalDirection == "atMost" ? (v <= habit.goalValue ? 1 : habit.goalValue / v) : min(v / habit.goalValue, 1)
+        }()
+        return Button { logging = true } label: {
+            ZStack {
+                Circle().stroke(tint.opacity(0.25), lineWidth: 4)
+                Circle().trim(from: 0, to: fraction)
+                    .stroke(habit.isDone(on: date) ? tint : tint.opacity(0.6), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                if let v {
+                    Text(v.formatted(.number.notation(.compactName).precision(.fractionLength(0...1))))
+                        .font(.system(size: size * 0.27, weight: .semibold)).monospacedDigit().minimumScaleFactor(0.6)
+                } else {
+                    Image(systemName: "plus").font(.system(size: size * 0.36, weight: .semibold)).foregroundStyle(tint)
+                }
+            }
+            .frame(width: size, height: size)
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $logging) { MeasureEntrySheet(habit: habit, date: date) }
+        .accessibilityLabel("Log \(habit.name)")
+    }
+
+    private var checkButton: some View {
         let count = habit.count(on: date)
         let target = max(habit.target, 1)
         let done = count >= target
-        Button {
+        return Button {
             withAnimation(.snappy) { habit.tap(on: date) }
             WidgetCenter.shared.reloadAllTimelines()
         } label: {
@@ -210,6 +266,17 @@ struct HabitDetailView: View {
                 HabitMonth(habit: habit, month: $month, tint: tint)
                     .padding()
                     .background(palette.surface, in: RoundedRectangle(cornerRadius: 16))
+
+                HabitCharts(habit: habit)
+
+                Button {
+                    habit.setSkipped(!habit.skips.contains(Habit.key(.now)), date: .now)
+                    WidgetCenter.shared.reloadAllTimelines()
+                } label: {
+                    Label(habit.skips.contains(Habit.key(.now)) ? "Un-skip Today" : "Skip Today (keeps your streak)", systemImage: "forward.end")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
             }
             .padding()
         }
@@ -221,7 +288,7 @@ struct HabitDetailView: View {
     }
 
     private var scheduleText: String {
-        let target = habit.target > 1 ? "\(habit.target)× a day" : "Once a day"
+        let target = habit.isMeasure ? (habit.goalValue > 0 ? "Goal \(habit.formattedGoal)" : "Track \(habit.unit)") : (habit.target > 1 ? "\(habit.target)× a day" : "Once a day")
         if habit.days.isEmpty { return "\(target), every day" }
         let names = Calendar.current.shortWeekdaySymbols
         return "\(target), " + habit.days.map { names[$0 - 1] }.joined(separator: " ")
@@ -327,7 +394,39 @@ struct HabitEditor: View {
                 }
             }
             Section {
-                Stepper("\(habit.target)× per day", value: $habit.target, in: 1...30)
+                Picker("Type", selection: $habit.kindRaw) {
+                    Text("Check Off").tag("check")
+                    Text("Track a Number").tag("measure")
+                }
+                .pickerStyle(.segmented)
+                if habit.isMeasure {
+                    HStack {
+                        Text("Unit")
+                        Spacer()
+                        TextField("kg, ml, hours, $…", text: $habit.unit).multilineTextAlignment(.trailing).textInputAutocapitalization(.never)
+                    }
+                    Picker("Goal", selection: $habit.goalDirection) {
+                        Text("At Least").tag("atLeast")
+                        Text("At Most").tag("atMost")
+                        Text("Just Track").tag("none")
+                    }
+                    if habit.goalDirection != "none" {
+                        HStack {
+                            Text("Goal Amount")
+                            Spacer()
+                            TextField("0", value: $habit.goalValue, format: .number).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 90)
+                            Text(habit.unit).foregroundStyle(.secondary)
+                        }
+                    }
+                    Toggle("Add Up Entries During the Day", isOn: $habit.sumEntries)
+                }
+            } header: {
+                Text("What to Track")
+            } footer: {
+                Text(habit.isMeasure ? (habit.sumEntries ? "Each entry adds to the day's total (good for water, steps, money spent)." : "Each entry replaces the day's value (good for weight, sleep, resting heart rate).") : "Tap to check it off, or set several times a day below.")
+            }
+            Section {
+                if !habit.isMeasure { Stepper("\(habit.target)× per day", value: $habit.target, in: 1...30) }
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Days")
                     HStack(spacing: 6) {

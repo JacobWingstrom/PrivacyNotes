@@ -4,6 +4,7 @@ enum ThemeMode: String, CaseIterable, Identifiable {
     case system, charcoal, dark, black, light
     // Editor-inspired themes
     case spectrum, vampire, arctic, oneDark, midnightCity, mocha, retro, solarDark, solarLight, latte
+    case custom
 
     var id: String { rawValue }
 
@@ -24,6 +25,7 @@ enum ThemeMode: String, CaseIterable, Identifiable {
         case .solarDark: "Solarized Dark"
         case .solarLight: "Solarized Light"
         case .latte: "Catppuccin Latte"
+        case .custom: "My Theme"
         }
     }
 
@@ -115,8 +117,64 @@ struct Palette: Equatable {
         case .solarDark: .solarDark
         case .solarLight: .solarLight
         case .latte: .latte
+        case .custom: .charcoal
         }
     }
+}
+
+/// A theme you design yourself in Settings → Design.
+struct CustomTheme: Codable, Hashable, Identifiable {
+    var id = UUID().uuidString
+    var name = "My Theme"
+    var dark = true
+    var background = "1C1B1A"
+    var surface = "262523"
+    var field = "232220"
+    var border = "363431"
+    var text = "F2F0EC"
+    var dim = "9A968F"
+    var accent = "4A8FE0"
+    var heading = "FF6188"
+    var bold = "FC9867"
+    var italic = "AB9DF2"
+    var code = "A9DC76"
+    var link = "78DCE8"
+    var list = "FFD866"
+
+    var palette: Palette {
+        Palette(background: Color(hex: background), surface: Color(hex: surface), field: Color(hex: field), border: Color(hex: border),
+                isDark: dark, text: Color(hex: text), secondaryText: Color(hex: dim), accentHex: accent,
+                syntax: SyntaxColors(heading: heading, bold: bold, italic: italic, code: code, link: link, list: list))
+    }
+
+    /// Start from any built-in theme.
+    static func from(_ p: Palette, name: String, accent: String) -> CustomTheme {
+        var t = CustomTheme()
+        t.name = name
+        t.dark = p.isDark
+        t.background = p.background.hexString; t.surface = p.surface.hexString; t.field = p.field.hexString; t.border = p.border.hexString
+        t.text = (p.text ?? (p.isDark ? .white : .black)).hexString
+        t.dim = (p.secondaryText ?? .gray).hexString
+        t.accent = p.accentHex ?? accent
+        if let s = p.syntax {
+            t.heading = s.heading; t.bold = s.bold; t.italic = s.italic; t.code = s.code; t.link = s.link; t.list = s.list
+        }
+        return t
+    }
+}
+
+/// Note editor preferences.
+enum EditorPrefs {
+    static var d: UserDefaults { .standard }
+    static var fontScale: Double { d.object(forKey: "editorFontScale") as? Double ?? 1 }
+    static var lineSpacing: Double { d.object(forKey: "editorLineSpacing") as? Double ?? 3 }
+    static var paragraphSpacing: Double { d.object(forKey: "editorParagraphSpacing") as? Double ?? 6 }
+    /// 0 = full width.
+    static var maxWidth: Double { d.object(forKey: "editorMaxWidth") as? Double ?? 0 }
+    static var typewriter: Bool { d.bool(forKey: "editorTypewriter") }
+    static var autocorrect: Bool { d.object(forKey: "editorAutocorrect") as? Bool ?? true }
+    static var spellCheck: Bool { d.object(forKey: "editorSpellCheck") as? Bool ?? true }
+    static var smartPunctuation: Bool { d.bool(forKey: "editorSmartPunctuation") }
 }
 
 private struct PaletteKey: EnvironmentKey {

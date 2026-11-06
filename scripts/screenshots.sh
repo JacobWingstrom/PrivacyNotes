@@ -49,3 +49,4 @@ shot lab-proxmox -startSection homelab -labTab proxmox
 shot lab-stacks -startSection homelab -labTab stacks
 shot notes-graph -startSection notes -demoGraph YES
 shot calendar-day -startSection calendar -calendarDayView YES
+shot habit-detail -startSection habits -demoOpenHabit YES

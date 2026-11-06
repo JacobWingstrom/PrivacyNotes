@@ -12,7 +12,7 @@ struct RootView: View {
     var body: some View {
         let palette = settings.palette(for: systemScheme)
         let _ = Appearance.apply(palette)
-        let themeKey = "\(settings.theme.rawValue)-\(systemScheme == .dark ? "d" : "l")-\(settings.fontStyle.rawValue)"
+        let themeKey = "\(settings.activeTheme.rawValue)-\(settings.activeCustomTheme?.id ?? "")-\(systemScheme == .dark ? "d" : "l")-\(settings.fontStyle.rawValue)-\(settings.currentSpace)"
 
         ZStack(alignment: .leading) {
             NavigationStack {
@@ -73,7 +73,7 @@ struct RootView: View {
         .onChange(of: lock.isLocked) { _, locked in
             if locked { showSettings = false; router.drawerOpen = false }
         }
-        .preferredColorScheme(settings.theme.colorScheme)
+        .preferredColorScheme(settings.activeColorScheme)
         .tint(settings.accentColor)
         .foregroundStyle(palette.text.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary))
         .font(.hush(.body))

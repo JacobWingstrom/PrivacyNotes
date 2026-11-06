@@ -84,7 +84,7 @@ enum Reminders {
         let base = "habit.\(habit.id.uuidString)"
         let ids = ["\(base).daily"] + (1...7).map { "\(base).\($0)" }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
-        guard habit.remind, !habit.archived, habit.deletedAt == nil else { return }
+        guard habit.remind, !habit.archived, habit.deletedAt == nil, !HabitVacation.isActive else { return }
         let title = habit.name.trimmed.isEmpty ? "Habit" : habit.name.trimmed
         let body = habit.target > 1 ? "Time for your habit (\(habit.target)× today)" : "Time for your habit"
         var comps = DateComponents()

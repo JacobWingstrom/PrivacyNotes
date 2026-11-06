@@ -460,12 +460,53 @@ final class Habit {
     var archived: Bool = false
     var sortIndex: Int = 0
     var createdAt: Date = Date()
+    /// "check" (done / not done, optionally several times a day) or "measure" (a number per day).
+    var kindRaw: String = "check"
+    var unit: String = ""
+    var goalValue: Double = 0
+    /// atLeast, atMost or none (just track it).
+    var goalDirection: String = "atLeast"
+    /// For measures: add entries up during the day (water) or keep the latest (weight).
+    var sumEntries: Bool = true
+    var valuesData: Data = Data()
+    var skipsData: Data = Data()
     var spaceID: String = ""
     var deletedAt: Date? = nil
 
     init(name: String = "") {
         self.name = name
         spaceID = Spaces.newItemSpace
+    }
+
+    var isMeasure: Bool { kindRaw == "measure" }
+    var values: [String: Double] {
+        get { JSONField.decode(valuesData, as: [String: Double].self) ?? [:] }
+        set { valuesData = JSONField.encode(newValue) }
+    }
+    var skips: Set<String> {
+        get { Set(JSONField.decode(skipsData, as: [String].self) ?? []) }
+        set { skipsData = JSONField.encode(Array(newValue).sorted()) }
+    }
+    func value(on date: Date) -> Double? { values[Self.key(date)] }
+    func isSkipped(on date: Date) -> Bool { skips.contains(Self.key(date)) || HabitVacation.contains(date) }
+
+    func record(_ v: Double, on date: Date) {
+        var vals = values
+        let k = Self.key(date)
+        vals[k] = sumEntries ? (vals[k] ?? 0) + v : v
+        values = vals
+    }
+
+    func setSkipped(_ on: Bool, date: Date) {
+        var s = skips
+        if on { s.insert(Self.key(date)) } else { s.remove(Self.key(date)) }
+        skips = s
+    }
+
+    var formattedGoal: String {
+        guard goalValue > 0 else { return unit.isEmpty ? "" : unit }
+        let n = goalValue.formatted(.number.precision(.fractionLength(0...1)))
+        return (goalDirection == "atMost" ? "≤ " : "") + n + (unit.isEmpty ? "" : " \(unit)")
     }
 
     var days: [Int] {
@@ -484,9 +525,19 @@ final class Habit {
     }
 
     func count(on date: Date) -> Int { log[Self.key(date)] ?? 0 }
-    func isDone(on date: Date) -> Bool { count(on: date) >= max(target, 1) }
+    func isDone(on date: Date) -> Bool {
+        if isMeasure {
+            guard let v = value(on: date) else { return false }
+            switch goalDirection {
+            case "atMost": return goalValue <= 0 || v <= goalValue
+            case "none": return true
+            default: return goalValue <= 0 || v >= goalValue
+            }
+        }
+        return count(on: date) >= max(target, 1)
+    }
     func isScheduled(on date: Date) -> Bool {
-        days.isEmpty || days.contains(Calendar.current.component(.weekday, from: date))
+        (days.isEmpty || days.contains(Calendar.current.component(.weekday, from: date))) && !isSkipped(on: date)
     }
 
     /// One more completion; wraps back to zero once the target is reached.
@@ -514,7 +565,7 @@ final class Habit {
         var steps = 0
         while steps < 3660 && day >= earliest {
             if isScheduled(on: day) {
-                if isDone(on: day) { n += 1 } else { break }
+                if isDone(on: day) { n += 1 } else if !(isMeasure && goalDirection == "none") { break }
             }
             day = cal.date(byAdding: .day, value: -1, to: day) ?? day
             steps += 1
@@ -621,4 +672,26 @@ enum Models {
 enum SymbolName {
     static func isValid(_ name: String) -> Bool { !name.isEmpty && UIImage(systemName: name) != nil }
     static func resolve(_ name: String, fallback: String) -> String { isValid(name) ? name : fallback }
+}
+
+
+/// Pause every habit for a while. Paused days don't count and don't break streaks.
+enum HabitVacation {
+    static let fromKey = "habitVacationFrom", untilKey = "habitVacationUntil"
+
+    static var from: Date? { UserDefaults.standard.object(forKey: fromKey) as? Date }
+    static var until: Date? { UserDefaults.standard.object(forKey: untilKey) as? Date }
+    static var isActive: Bool { contains(.now) }
+
+    static func contains(_ date: Date) -> Bool {
+        guard let f = from, let u = until else { return false }
+        let cal = Calendar.current
+        let d = cal.startOfDay(for: date)
+        return d >= cal.startOfDay(for: f) && d <= cal.startOfDay(for: u)
+    }
+
+    static func set(from: Date?, until: Date?) {
+        UserDefaults.standard.set(from, forKey: fromKey)
+        UserDefaults.standard.set(until, forKey: untilKey)
+    }
 }

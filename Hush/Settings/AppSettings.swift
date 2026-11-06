@@ -4,6 +4,12 @@ struct SpaceInfo: Codable, Hashable, Identifiable {
     var id: String
     var name: String
     var symbol: String
+    /// Optional look for this space; nil uses your main theme and accent.
+    var theme: String? = nil
+    var customThemeID: String? = nil
+    var accentHex: String? = nil
+    /// When true, this space has its own Home widgets.
+    var ownHome: Bool? = nil
 
     static let defaults = [
         SpaceInfo(id: Spaces.defaultID, name: "Personal", symbol: "house"),
@@ -42,7 +48,9 @@ final class AppSettings {
         didSet {
             store.set(theme.rawValue, forKey: K.theme)
             // Editor themes come with their own accent color.
-            if let hex = Palette.forTheme(theme, scheme: .dark).accentHex { accentHex = hex }
+            if theme == .custom, let c = customThemes.first(where: { $0.id == customThemeID }) ?? customThemes.first {
+                accentHex = c.accent
+            } else if let hex = Palette.forTheme(theme, scheme: .dark).accentHex { accentHex = hex }
         }
     }
     var accentHex: String { didSet { store.set(accentHex, forKey: K.accent) } }
@@ -61,7 +69,21 @@ final class AppSettings {
     var homeBlocks: [HomeBlock] { didSet { store.set(Self.encode(homeBlocks), forKey: K.homeOrder) } }
     var hiddenHomeBlocks: Set<HomeBlock> { didSet { store.set(Self.encode(hiddenHomeBlocks), forKey: K.homeHidden) } }
     var showGreeting: Bool { didSet { store.set(showGreeting, forKey: K.greeting) } }
-    var homeWidgets: [HomeWidget] { didSet { store.set(Self.encode(homeWidgets), forKey: "homeWidgets") } }
+    var baseHomeWidgets: [HomeWidget] { didSet { store.set(Self.encode(baseHomeWidgets), forKey: "homeWidgets") } }
+    var spaceHomes: [String: [HomeWidget]] { didSet { store.set(Self.encode(spaceHomes), forKey: "spaceHomes") } }
+    var customThemes: [CustomTheme] { didSet { store.set(Self.encode(customThemes), forKey: "customThemes") } }
+    var customThemeID: String { didSet { store.set(customThemeID, forKey: "customThemeID") } }
+
+    /// The Home layout for the space you're viewing.
+    var homeWidgets: [HomeWidget] {
+        get {
+            if let sp = currentSpaceInfo, sp.ownHome == true { return spaceHomes[sp.id] ?? baseHomeWidgets }
+            return baseHomeWidgets
+        }
+        set {
+            if let sp = currentSpaceInfo, sp.ownHome == true { spaceHomes[sp.id] = newValue } else { baseHomeWidgets = newValue }
+        }
+    }
 
     // Security
     var lockEnabled: Bool { didSet { store.set(lockEnabled, forKey: K.lock); syncWidgetPrivacy() } }
@@ -111,14 +133,17 @@ final class AppSettings {
         homeBlocks = blocks
         hiddenHomeBlocks = Self.decode(d.data(forKey: K.homeHidden)) ?? []
         showGreeting = d.object(forKey: K.greeting) as? Bool ?? true
+        spaceHomes = Self.decode(d.data(forKey: "spaceHomes")) ?? [:]
+        customThemes = Self.decode(d.data(forKey: "customThemes")) ?? []
+        customThemeID = d.string(forKey: "customThemeID") ?? ""
         if let saved: [HomeWidget] = Self.decode(d.data(forKey: "homeWidgets")) {
-            homeWidgets = saved
+            baseHomeWidgets = saved
         } else if d.data(forKey: K.homeOrder) != nil {
             let oldBlocks: [HomeBlock] = Self.decode(d.data(forKey: K.homeOrder)) ?? HomeBlock.allCases
             let oldHidden: Set<HomeBlock> = Self.decode(d.data(forKey: K.homeHidden)) ?? []
-            homeWidgets = HomeLayouts.migrate(blocks: oldBlocks, hidden: oldHidden, greeting: d.object(forKey: K.greeting) as? Bool ?? true)
+            baseHomeWidgets = HomeLayouts.migrate(blocks: oldBlocks, hidden: oldHidden, greeting: d.object(forKey: K.greeting) as? Bool ?? true)
         } else {
-            homeWidgets = HomeLayouts.standard
+            baseHomeWidgets = HomeLayouts.standard
         }
 
         lockEnabled = d.bool(forKey: K.lock)
@@ -137,7 +162,18 @@ final class AppSettings {
         journalReminderMinutes = d.object(forKey: K.journalTime) as? Int ?? 1260
     }
 
-    var accentColor: Color { Color(hex: accentHex) }
+    /// The space's accent if it has one, otherwise yours.
+    var accentColor: Color { Color(hex: currentSpaceInfo?.accentHex ?? accentHex) }
+
+    /// The theme in effect right now (a space can override it).
+    var activeTheme: ThemeMode { currentSpaceInfo?.theme.flatMap(ThemeMode.init) ?? theme }
+    var activeCustomTheme: CustomTheme? {
+        let id = currentSpaceInfo?.theme != nil ? (currentSpaceInfo?.customThemeID ?? customThemeID) : customThemeID
+        return customThemes.first { $0.id == id } ?? customThemes.first
+    }
+    var activeColorScheme: ColorScheme? {
+        activeTheme == .custom ? ((activeCustomTheme?.dark ?? true) ? .dark : .light) : activeTheme.colorScheme
+    }
 
     /// nil when showing every space.
     var spaceFilter: String? { currentSpace == "all" ? nil : currentSpace }
@@ -149,7 +185,10 @@ final class AppSettings {
         AppGroup.defaults.set(accentHex, forKey: "accentHex")
     }
 
-    func palette(for scheme: ColorScheme) -> Palette { Palette.forTheme(theme, scheme: scheme) }
+    func palette(for scheme: ColorScheme) -> Palette {
+        if activeTheme == .custom, let c = activeCustomTheme { return c.palette }
+        return Palette.forTheme(activeTheme, scheme: scheme)
+    }
 
     var visibleSections: [AppSection] {
         let v = sectionOrder.filter { !hiddenSections.contains($0) }

@@ -30,6 +30,7 @@ struct SettingsView: View {
                 Item(id: "Layout", symbol: "sidebar.left", keywords: "sidebar sections home dashboard start launch") { AnyView(LayoutSettings()) },
                 Item(id: "Templates", symbol: "doc.on.doc", keywords: "note homelab meeting") { AnyView(TemplatesSettings()) },
                 Item(id: "Widgets & Siri", symbol: "square.grid.2x2", keywords: "home screen shortcuts voice") { AnyView(WidgetSiriSettings()) },
+                Item(id: "Editor", symbol: "character.cursor.ibeam", keywords: "line spacing width typewriter autocorrect spell font size") { AnyView(EditorSettings()) },
                 Item(id: "Lists", symbol: "list.bullet", keywords: "compact preview sort completed") { AnyView(ListSettings()) },
                 Item(id: "Reminders", symbol: "bell", keywords: "notifications journal time") { AnyView(ReminderSettings()) },
                 Item(id: "Date & Time", symbol: "calendar", keywords: "week monday sunday") { AnyView(DateSettings()) },
@@ -112,6 +113,7 @@ struct DesignSettings: View {
             Section("Theme") {
                 themeGrid(ThemeMode.basics)
             }
+            MyThemesSection()
             Section {
                 themeGrid(ThemeMode.editorThemes)
             } header: {
@@ -541,6 +543,9 @@ struct AppIconPicker: View {
     private let icons: [(String, String)] = [
         ("AppIcon", "Ember"), ("AppIcon-Midnight", "Midnight"), ("AppIcon-Forest", "Forest"),
         ("AppIcon-Plum", "Plum"), ("AppIcon-Paper", "Paper"), ("AppIcon-Mono", "Mono"),
+        ("AppIcon-Spectrum", "Monokai Pro style"), ("AppIcon-Vampire", "Dracula"), ("AppIcon-Arctic", "Nord"),
+        ("AppIcon-OneDark", "One Dark"), ("AppIcon-Midnight2", "Tokyo Night"), ("AppIcon-Mocha", "Catppuccin"),
+        ("AppIcon-Retro", "Gruvbox"), ("AppIcon-Solar", "Solarized"),
     ]
 
     var body: some View {
@@ -589,16 +594,17 @@ struct SpacesSettings: View {
                 Text("Switch spaces from the top of the menu (☰). New items go into the space you're viewing.")
             }
             Section("Spaces") {
-                ForEach($s.spaces) { $sp in
-                    HStack(spacing: 12) {
-                        Menu {
-                            ForEach(SpaceInfo.symbols, id: \.self) { sym in
-                                Button { sp.symbol = sym } label: { Label(sym, systemImage: sym) }
+                ForEach(settings.spaces) { sp in
+                    NavigationLink { SpaceDetailSettings(spaceID: sp.id) } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: sp.symbol).foregroundStyle(sp.accentHex.map { Color(hex: $0) } ?? Color.accentColor).frame(width: 28)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(sp.name)
+                                let extras = [sp.theme.flatMap(ThemeMode.init).map { $0 == .custom ? "Custom theme" : $0.label },
+                                              sp.ownHome == true ? "Own Home" : nil].compactMap { $0 }
+                                if !extras.isEmpty { Text(extras.joined(separator: " · ")).font(.hush(.caption)).foregroundStyle(.secondary) }
                             }
-                        } label: {
-                            Image(systemName: sp.symbol).foregroundStyle(.tint).frame(width: 28)
                         }
-                        TextField("Name", text: $sp.name)
                     }
                 }
                 .onDelete { idx in

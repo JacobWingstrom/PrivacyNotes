@@ -82,6 +82,14 @@ enum DemoData {
             ctx.insert(habit)
         }
 
+        let water = Habit(name: "Weight")
+        water.kindRaw = "measure"; water.unit = "kg"; water.goalDirection = "atMost"; water.goalValue = 78; water.sumEntries = false
+        water.emoji = "scalemass"; water.sortIndex = 9; water.createdAt = day(-60)
+        var vals: [String: Double] = [:]
+        for d in 0..<45 where d % 2 == 0 { vals[Habit.key(day(-d))] = 80.5 - Double(45 - d) * 0.04 + Double(d % 5) * 0.1 }
+        water.values = vals
+        ctx.insert(water)
+
         let tasks: [(String, Int?, Int)] = [("Vitamins", 0, 0), ("Call the dentist", 0, 3), ("Water plants", 1, 1), ("Renew library card", 3, 2)]
         for t in tasks {
             let task = TaskItem(title: t.0)

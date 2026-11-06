@@ -6,7 +6,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "2.3.0"
+    MARKETING_VERSION: "2.4.0"
     CURRENT_PROJECT_VERSION: "1"
     TARGETED_DEVICE_FAMILY: "1"
 targets:
@@ -53,7 +53,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jacobwingstrom.hush
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIcon-Midnight AppIcon-Forest AppIcon-Plum AppIcon-Paper AppIcon-Mono"
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIcon-Midnight AppIcon-Forest AppIcon-Plum AppIcon-Paper AppIcon-Mono AppIcon-Spectrum AppIcon-Vampire AppIcon-Arctic AppIcon-OneDark AppIcon-Midnight2 AppIcon-Mocha AppIcon-Retro AppIcon-Solar"
         ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Hush
