@@ -17,6 +17,8 @@ struct SettingsView: View {
     private var groups: [(String, [Item])] {
         [
             ("Your Data", [
+                Item(id: "Connected Calendars", symbol: "calendar.badge.checkmark", keywords: "outlook apple icloud google exchange sync link") { AnyView(ConnectedCalendarsView()) },
+                Item(id: "Import from iPhone", symbol: "square.and.arrow.down", keywords: "contacts reminders events notes vcf ics markdown text") { AnyView(ImportView()) },
                 Item(id: "Statistics", symbol: "chart.bar", keywords: "counts words") { AnyView(StatisticsView()) },
                 Item(id: "Backup & Restore", symbol: "arrow.triangle.2.circlepath", keywords: "import export file") { AnyView(BackupView()) },
             ]),
@@ -303,6 +305,7 @@ struct PrivacyInfo: View {
         HushForm {
             Section {
                 Label("No internet connection is ever made", systemImage: "wifi.slash")
+                Label("Connected calendars are read through iOS, not the internet", systemImage: "calendar")
                 Label("No accounts, ads or analytics", systemImage: "person.crop.circle.badge.xmark")
                 Label("Data stays on this iPhone and out of iCloud backups", systemImage: "iphone")
                 Label("Vault and Files encrypted with AES-256", systemImage: "lock.shield")

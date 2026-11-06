@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import EventKit
 
 struct HomeView: View {
     let title: String
@@ -7,6 +8,8 @@ struct HomeView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(Router.self) private var router
     @Environment(\.palette) private var palette
+    @Environment(PhoneCalendar.self) private var phone
+    @State private var phoneRef: PhoneEventRef?
     @Query(sort: \Note.updatedAt, order: .reverse) private var notes: [Note]
     @State private var choosing = false
     @State private var calMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
@@ -53,6 +56,7 @@ struct HomeView: View {
         .background(palette.background)
         .navigationTitle(title)
         .onCreate(.home) { choosing = true }
+        .sheet(item: $phoneRef) { ref in PhoneEventEditor(store: phone.store, ref: ref).ignoresSafeArea() }
         .newItemDialog(isPresented: $choosing)
         .navigationDestination(item: $newNote) { NoteEditorView(note: $0) }
         .navigationDestination(item: $newEntry) { JournalEditorView(entry: $0, isNew: true) }
@@ -161,8 +165,13 @@ struct HomeView: View {
         let endOfToday = Calendar.current.startOfDay(for: .now).addingTimeInterval(86400)
         let due = tasks.filter { t in !t.isDone && (t.dueDate.map { $0 < endOfToday } ?? false) }.sorted(by: TaskItem.order)
         let todayEvents = events.filter { $0.occurs(on: .now) }
+        let startOfToday = Calendar.current.startOfDay(for: .now)
+        let phoneToday = phone.events(from: startOfToday, to: endOfToday)
         return Card(title: "Today", symbol: "sun.max") {
-            if due.isEmpty && todayEvents.isEmpty {
+            ForEach(phoneToday.prefix(6), id: \.calendarItemIdentifier) { e in
+                Button { phoneRef = PhoneEventRef(event: e) } label: { PhoneEventRow(event: e) }.buttonStyle(.plain)
+            }
+            if due.isEmpty && todayEvents.isEmpty && phoneToday.isEmpty {
                 Text("Nothing due today. Enjoy it.").foregroundStyle(.secondary)
             }
             ForEach(todayEvents.prefix(4)) { e in

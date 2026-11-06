@@ -1,11 +1,14 @@
 import SwiftUI
 import SwiftData
+import EventKit
 
 struct CalendarView: View {
     let title: String
     @Environment(AppSettings.self) private var settings
     @Environment(\.modelContext) private var context
     @Environment(\.palette) private var palette
+    @Environment(PhoneCalendar.self) private var phone
+    @State private var phoneRef: PhoneEventRef?
     @Query(sort: \CalendarEvent.start) private var events: [CalendarEvent]
     @State private var collapsed = false
     @State private var search = ""
@@ -43,7 +46,8 @@ struct CalendarView: View {
                 .background(palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .plainRow(top: 12, bottom: 8)
                 Section {
-                    DayItems(day: selected, events: filteredEvents, tasks: tasks, journals: journals)
+                    DayItems(day: selected, events: filteredEvents, tasks: tasks, journals: journals,
+                             phoneEvents: filteredPhoneEvents, onOpenPhone: { phoneRef = PhoneEventRef(event: $0) })
                         .hushRow()
                 } header: {
                     HStack(spacing: 8) {
@@ -63,7 +67,19 @@ struct CalendarView: View {
             context.insert(e)
             newEvent = e
         }
+        .sheet(item: $phoneRef) { ref in
+            PhoneEventEditor(store: phone.store, ref: ref).ignoresSafeArea()
+        }
         .toolbar {
+            if phone.isActive {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        let start = cal.date(bySettingHour: min(Calendar.current.component(.hour, from: .now) + 1, 23), minute: 0, second: 0, of: selected) ?? selected
+                        phoneRef = PhoneEventRef(event: nil, start: start)
+                    } label: { Image(systemName: "calendar.badge.plus") }
+                    .accessibilityLabel("New event in iPhone calendar")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     agenda.toggle()
@@ -86,8 +102,22 @@ struct CalendarView: View {
         }
     }
 
+    /// Phone events from a month before the shown month to two months after (covers the agenda too).
+    private var phoneEvents: [EKEvent] {
+        let from = cal.date(byAdding: .month, value: -1, to: min(month, cal.startOfDay(for: .now))) ?? month
+        let to = cal.date(byAdding: .month, value: 3, to: max(month, cal.startOfDay(for: .now))) ?? month
+        return phone.events(from: from, to: to)
+    }
+
+    private var filteredPhoneEvents: [EKEvent] {
+        let all = phoneEvents
+        guard !search.isEmpty else { return all }
+        return all.filter { ($0.title ?? "").localizedCaseInsensitiveContains(search) || ($0.location ?? "").localizedCaseInsensitiveContains(search) }
+    }
+
     private var markedDays: Set<Date> {
         var days = Set<Date>()
+        for e in phoneEvents { days.insert(cal.startOfDay(for: e.startDate)) }
         for e in events {
             var d = cal.startOfDay(for: e.start)
             let last = cal.startOfDay(for: max(e.end, e.start))
@@ -110,7 +140,8 @@ struct CalendarView: View {
         if days.isEmpty { EmptyMessage(text: "Nothing in the next 60 days.") }
         ForEach(days, id: \.self) { day in
             Section {
-                DayItems(day: day, events: filteredEvents, tasks: tasks, journals: journals).hushRow()
+                DayItems(day: day, events: filteredEvents, tasks: tasks, journals: journals,
+                         phoneEvents: filteredPhoneEvents, onOpenPhone: { phoneRef = PhoneEventRef(event: $0) }).hushRow()
             } header: {
                 ListHeader(title: DateText.relativeDay(day))
             }
@@ -237,6 +268,8 @@ struct DayItems: View {
     let events: [CalendarEvent]
     let tasks: [TaskItem]
     let journals: [JournalEntry]
+    var phoneEvents: [EKEvent] = []
+    var onOpenPhone: (EKEvent) -> Void = { _ in }
 
     var body: some View {
         let cal = Calendar.current
@@ -244,8 +277,14 @@ struct DayItems: View {
         let dayTasks = tasks.filter { t in t.dueDate.map { cal.isDate($0, inSameDayAs: day) } ?? false }.sorted(by: TaskItem.order)
         let dayJournals = journals.filter { cal.isDate($0.date, inSameDayAs: day) }
 
-        if dayEvents.isEmpty && dayTasks.isEmpty && dayJournals.isEmpty {
+        let dayPhone = phoneEvents.filter { $0.occurs(on: day) }
+
+        if dayEvents.isEmpty && dayTasks.isEmpty && dayJournals.isEmpty && dayPhone.isEmpty {
             Text("Nothing planned").foregroundStyle(.secondary)
+        }
+        ForEach(dayPhone, id: \.calendarItemIdentifier) { e in
+            Button { onOpenPhone(e) } label: { PhoneEventRow(event: e) }
+                .buttonStyle(.plain)
         }
         ForEach(dayEvents) { e in
             NavigationLink { EventEditorView(event: e) } label: { EventRow(event: e) }

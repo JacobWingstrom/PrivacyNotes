@@ -7,6 +7,7 @@ struct HushApp: App {
     @State private var settings: AppSettings
     @State private var lock = LockManager()
     @State private var router: Router
+    @State private var phoneCalendar = PhoneCalendar()
     private let container = Storage.makeContainer()
 
     init() {
@@ -21,6 +22,7 @@ struct HushApp: App {
                 .environment(settings)
                 .environment(lock)
                 .environment(router)
+                .environment(phoneCalendar)
                 .onAppear { DemoData.seedIfRequested(container.mainContext) }
         }
         .modelContainer(container)
