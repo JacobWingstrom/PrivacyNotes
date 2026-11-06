@@ -99,6 +99,35 @@ enum MarkdownStyler {
             re.enumerateMatches(in: storage.string, range: full) { m, _, _ in if let m { body(m) } }
         }
 
+        var calloutBlocks: [NSRange] = []
+        // Callouts: > [!TIP] Title, and the quote lines that follow.
+        each(calloutRe) { m in
+            let ns = storage.string as NSString
+            let type = ns.substring(with: m.range(at: 1))
+            let (color, _) = calloutStyle(type)
+            var block = m.range
+            var next = NSMaxRange(ns.lineRange(for: m.range))
+            while next < ns.length {
+                let line = ns.lineRange(for: NSRange(location: next, length: 0))
+                guard ns.substring(with: line).hasPrefix(">") else { break }
+                block = NSUnionRange(block, line)
+                next = NSMaxRange(line)
+            }
+            storage.addAttributes([.backgroundColor: color.withAlphaComponent(0.12), .foregroundColor: colors.text, .font: base], range: block)
+            storage.addAttributes([.foregroundColor: color, .font: font(base, bold: true)], range: NSRange(location: m.range(at: 1).location, length: m.range(at: 1).length))
+            let bracketOpen = NSRange(location: m.range(at: 1).location - 2, length: 2)
+            let bracketClose = NSRange(location: m.range(at: 1).upperBound, length: 1)
+            storage.addAttribute(.foregroundColor, value: colors.dim, range: bracketOpen)
+            storage.addAttribute(.foregroundColor, value: colors.dim, range: bracketClose)
+            storage.addAttribute(.font, value: font(base, bold: true), range: m.range(at: 2))
+            markers += [bracketOpen, bracketClose]
+            calloutBlocks.append(block)
+            quoteLine.enumerateMatches(in: storage.string, range: block) { q, _, _ in
+                if let q {
+                    storage.addAttribute(.foregroundColor, value: color, range: q.range)
+                }
+            }
+        }
         each(heading) { m in
             let level = m.range(at: 1).length
             let scale: CGFloat = [1.6, 1.35, 1.2, 1.1, 1.05, 1.0][min(level, 6) - 1]
@@ -138,6 +167,7 @@ enum MarkdownStyler {
             markers += [open, close]
         }
         each(quote) { m in
+            if calloutBlocks.contains(where: { NSIntersectionRange($0, m.range).length > 0 }) { return }
             storage.addAttribute(.foregroundColor, value: colors.secondary, range: m.range)
             storage.addAttribute(.font, value: font(base, italic: true), range: m.range)
             storage.addAttribute(.foregroundColor, value: colors.accent, range: NSRange(location: m.range.location, length: 1))
@@ -212,33 +242,6 @@ enum MarkdownStyler {
             storage.addAttribute(.foregroundColor, value: colors.dim, range: NSRange(location: m.range(at: 1).upperBound, length: m.range.upperBound - m.range(at: 1).upperBound))
             markers.append(NSRange(location: m.range.location, length: 1))
             markers.append(NSRange(location: m.range(at: 1).upperBound, length: m.range.upperBound - m.range(at: 1).upperBound))
-        }
-        // Callouts: > [!TIP] Title, and the quote lines that follow.
-        each(calloutRe) { m in
-            let ns = storage.string as NSString
-            let type = ns.substring(with: m.range(at: 1))
-            let (color, _) = calloutStyle(type)
-            var block = m.range
-            var next = NSMaxRange(ns.lineRange(for: m.range))
-            while next < ns.length {
-                let line = ns.lineRange(for: NSRange(location: next, length: 0))
-                guard ns.substring(with: line).hasPrefix(">") else { break }
-                block = NSUnionRange(block, line)
-                next = NSMaxRange(line)
-            }
-            storage.addAttributes([.backgroundColor: color.withAlphaComponent(0.12), .foregroundColor: colors.text, .font: base], range: block)
-            storage.addAttributes([.foregroundColor: color, .font: font(base, bold: true)], range: NSRange(location: m.range(at: 1).location, length: m.range(at: 1).length))
-            let bracketOpen = NSRange(location: m.range(at: 1).location - 2, length: 2)
-            let bracketClose = NSRange(location: m.range(at: 1).upperBound, length: 1)
-            storage.addAttribute(.foregroundColor, value: colors.dim, range: bracketOpen)
-            storage.addAttribute(.foregroundColor, value: colors.dim, range: bracketClose)
-            storage.addAttribute(.font, value: font(base, bold: true), range: m.range(at: 2))
-            markers += [bracketOpen, bracketClose]
-            quoteLine.enumerateMatches(in: storage.string, range: block) { q, _, _ in
-                if let q {
-                    storage.addAttribute(.foregroundColor, value: color, range: q.range)
-                }
-            }
         }
         storage.endEditing()
     }
