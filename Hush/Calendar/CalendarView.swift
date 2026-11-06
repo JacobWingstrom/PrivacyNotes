@@ -23,11 +23,29 @@ struct CalendarView: View {
     @State private var month = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
     @State private var selected = Calendar.current.startOfDay(for: .now)
     @State private var agenda = false
+    @AppStorage("calendarDayView") private var dayView = false
     @State private var newEvent: CalendarEvent?
 
     private var cal: Calendar { settings.calendar }
 
     var body: some View {
+        if dayView && !agenda {
+            VStack(spacing: 6) {
+                MonthGrid(month: $month, selected: $selected, calendar: cal, marked: markedDays, collapsed: true)
+                    .padding(.horizontal, 8)
+                    .padding(.top, 8)
+                DayTimeline(day: selected, events: filteredEvents, tasks: tasks, phoneEvents: filteredPhoneEvents,
+                            onOpenPhone: { phoneRef = PhoneEventRef(event: $0) })
+                    .padding(.horizontal, 8)
+            }
+            .background(palette.background)
+            .modifier(CalendarChrome(view: self))
+        } else {
+            listBody.modifier(CalendarChrome(view: self))
+        }
+    }
+
+    fileprivate var listBody: some View {
         List {
             if agenda {
                 agendaSections
@@ -65,6 +83,10 @@ struct CalendarView: View {
         }
         .hushList()
         .safeAreaInset(edge: .top, spacing: 0) { SearchHeader(text: $search, prompt: "Search events…") }
+    }
+
+    fileprivate func chrome<V: View>(_ content: V) -> some View {
+        content
         .navigationTitle(title)
         .navigationDestination(item: $newEvent) { EventEditorView(event: $0, isNew: true) }
         .onCreate(.calendar) {
@@ -87,10 +109,12 @@ struct CalendarView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    agenda.toggle()
-                } label: { Image(systemName: agenda ? "calendar" : "list.bullet") }
-                .accessibilityLabel(agenda ? "Month view" : "Agenda view")
+                Menu {
+                    Button { agenda = false; dayView = false } label: { Label("Month", systemImage: "calendar") }
+                    Button { agenda = false; dayView = true } label: { Label("Day Timeline", systemImage: "calendar.day.timeline.left") }
+                    Button { agenda = true } label: { Label("Agenda", systemImage: "list.bullet") }
+                } label: { Image(systemName: agenda ? "list.bullet" : (dayView ? "calendar.day.timeline.left" : "calendar")) }
+                .accessibilityLabel("Change view")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Today") {
@@ -401,4 +425,11 @@ struct EventEditorView: View {
             }
         }
     }
+}
+
+
+/// Shared navigation, toolbar and sheets for both calendar layouts.
+private struct CalendarChrome: ViewModifier {
+    let view: CalendarView
+    func body(content: Content) -> some View { view.chrome(content) }
 }

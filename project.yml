@@ -6,7 +6,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "2.2.0"
+    MARKETING_VERSION: "2.3.0"
     CURRENT_PROJECT_VERSION: "1"
     TARGETED_DEVICE_FAMILY: "1"
 targets:
@@ -69,6 +69,8 @@ targets:
         INFOPLIST_KEY_NSContactsUsageDescription: "Hush can import your contacts into its private Contacts. Nothing leaves your phone."
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Hush imports the photos you pick into its encrypted Files, notes or Vault."
         INFOPLIST_KEY_NSCameraUsageDescription: "Hush uses the camera to scan documents. Scans stay encrypted on your iPhone."
+        INFOPLIST_KEY_NSSupportsLiveActivities: YES
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Hush uses your location only to remind you about tasks when you arrive at or leave a place. It never leaves your phone."
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Hush uses the microphone to record voice memos. Recordings stay encrypted on your iPhone."
         CODE_SIGNING_ALLOWED: NO
   HushWidgets:

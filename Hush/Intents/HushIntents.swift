@@ -14,9 +14,12 @@ struct AddTaskIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let ctx = Storage.shared.mainContext
-        let t = TaskItem(title: name.trimmed)
+        let parsed = TaskParser.parse(name.trimmed)
+        let t = TaskItem(title: parsed.title)
         if dueToday { t.dueDate = Calendar.current.startOfDay(for: .now) }
+        TaskParser.apply(parsed, to: t)
         ctx.insert(t)
+        Reminders.sync(t)
         try ctx.save()
         WidgetCenter.shared.reloadAllTimelines()
         return .result(dialog: "Added “\(name)” to Hush.")

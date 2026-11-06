@@ -2,6 +2,7 @@ import WidgetKit
 import SwiftUI
 import SwiftData
 import AppIntents
+import ActivityKit
 
 @main
 struct HushWidgetBundle: WidgetBundle {
@@ -9,6 +10,7 @@ struct HushWidgetBundle: WidgetBundle {
         TodayWidget()
         HabitsWidget()
         QuickAddWidget()
+        FocusLiveActivity()
     }
 }
 
@@ -224,5 +226,64 @@ struct QuickAddView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Focus timer Live Activity
+
+struct FocusLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: FocusActivityAttributes.self) { context in
+            let accent = Color(hex: context.attributes.accentHex)
+            let s = context.state
+            HStack(spacing: 14) {
+                Image(systemName: s.phase == "focus" ? "timer" : "cup.and.saucer.fill")
+                    .font(.title2)
+                    .foregroundStyle(s.phase == "focus" ? accent : .green)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(s.phase == "focus" ? "Focus · \(s.round)/\(s.rounds)" : "Break").font(.caption).foregroundStyle(.secondary)
+                    Text(context.attributes.title).font(.headline).lineLimit(1)
+                }
+                Spacer()
+                if s.paused {
+                    Text(Self.format(s.remainingWhenPaused)).font(.system(.title, design: .rounded).monospacedDigit())
+                } else {
+                    Text(timerInterval: Date()...max(s.endsAt, Date()), countsDown: true)
+                        .font(.system(.title, design: .rounded).monospacedDigit())
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 110)
+                }
+            }
+            .padding()
+            .activityBackgroundTint(Color.black.opacity(0.6))
+        } dynamicIsland: { context in
+            let accent = Color(hex: context.attributes.accentHex)
+            let s = context.state
+            return DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    Label(s.phase == "focus" ? "Focus" : "Break", systemImage: s.phase == "focus" ? "timer" : "cup.and.saucer.fill")
+                        .foregroundStyle(s.phase == "focus" ? accent : .green)
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    if s.paused { Text("Paused").foregroundStyle(.secondary) }
+                    else { Text(timerInterval: Date()...max(s.endsAt, Date()), countsDown: true).monospacedDigit().frame(maxWidth: 70) }
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    Text(context.attributes.title).font(.caption).lineLimit(1)
+                }
+            } compactLeading: {
+                Image(systemName: s.phase == "focus" ? "timer" : "cup.and.saucer.fill").foregroundStyle(s.phase == "focus" ? accent : .green)
+            } compactTrailing: {
+                if s.paused { Image(systemName: "pause.fill") }
+                else { Text(timerInterval: Date()...max(s.endsAt, Date()), countsDown: true).monospacedDigit().frame(maxWidth: 44) }
+            } minimal: {
+                Image(systemName: "timer").foregroundStyle(accent)
+            }
+        }
+    }
+
+    static func format(_ t: Double) -> String {
+        let s = Int(t)
+        return String(format: "%d:%02d", s / 60, s % 60)
     }
 }

@@ -158,9 +158,12 @@ struct QuickAddWidgetView: View {
         let t = text.trimmed
         guard !t.isEmpty else { return }
         if asTask {
-            let task = TaskItem(title: t)
+            let parsed = TaskParser.parse(t)
+            let task = TaskItem(title: parsed.title)
             task.dueDate = Calendar.current.startOfDay(for: .now)
+            TaskParser.apply(parsed, to: task)
             context.insert(task)
+            Reminders.sync(task)
         } else {
             let n = Note()
             n.title = t

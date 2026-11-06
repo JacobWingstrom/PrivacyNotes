@@ -107,6 +107,16 @@ final class TaskItem {
     var createdAt: Date = Date()
     var completedAt: Date? = nil
 
+    /// Length of the block on the calendar timeline.
+    var durationMinutes: Int = 30
+    var focusMinutes: Int = 0
+    // Location reminder
+    var locationRemind: Bool = false
+    var locationName: String = ""
+    var latitude: Double = 0
+    var longitude: Double = 0
+    var radius: Double = 150
+    var locationOnArrive: Bool = true
     var spaceID: String = ""
     var deletedAt: Date? = nil
 

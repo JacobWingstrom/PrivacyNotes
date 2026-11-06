@@ -31,6 +31,7 @@ struct TasksView: View {
     @State private var quickTitle = ""
     @State private var search = ""
     @State private var newTask: TaskItem?
+    @State private var focusing = false
 
     enum TaskFilter: String, CaseIterable, Identifiable {
         case today, upcoming, all, done
@@ -66,9 +67,12 @@ struct TasksView: View {
             .pickerStyle(.segmented)
             .plainRow(top: 12, bottom: 4)
             if filter != .done {
-                QuickAddField(prompt: filter == .today ? "Add a quick task for today" : "Add a quick task",
+                QuickAddField(prompt: "Try “Call mom tomorrow 5pm !high #family”",
                               text: $quickTitle, onSubmit: addQuick)
-                    .plainRow(top: 8, bottom: 8)
+                    .plainRow(top: 8, bottom: quickTitle.isEmpty ? 8 : 2)
+                if !quickTitle.trimmed.isEmpty {
+                    ParsedPreview(parsed: TaskParser.parse(quickTitle)).plainRow(top: 0, bottom: 8)
+                }
             }
             Section {
                 ForEach(filtered) { task in
@@ -99,6 +103,15 @@ struct TasksView: View {
         }
         .navigationTitle(title)
         .navigationDestination(item: $newTask) { TaskEditorView(task: $0, isNew: true) }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { focusing = true } label: {
+                    Image(systemName: FocusTimer.shared.isRunning ? "timer.circle.fill" : "timer")
+                }
+                .accessibilityLabel("Focus timer")
+            }
+        }
+        .sheet(isPresented: $focusing) { FocusTimerView() }
         .onCreate(.tasks) {
             let t = TaskItem()
             if filter == .today { t.dueDate = Calendar.current.startOfDay(for: .now) }
@@ -120,12 +133,15 @@ struct TasksView: View {
     private func addQuick() {
         let text = quickTitle.trimmed
         guard !text.isEmpty else { return }
-        let t = TaskItem(title: text)
+        let parsed = TaskParser.parse(text)
+        let t = TaskItem(title: parsed.title)
         let today = Calendar.current.startOfDay(for: .now)
         if filter == .today { t.dueDate = today }
         if filter == .upcoming { t.dueDate = Calendar.current.date(byAdding: .day, value: 1, to: today) }
         t.list = listFilter ?? ""
+        TaskParser.apply(parsed, to: t)
         context.insert(t)
+        Reminders.sync(t)
         quickTitle = ""
     }
 }
@@ -156,13 +172,15 @@ struct TaskRow: View {
     @ViewBuilder private var meta: some View {
         let subs = task.subtasks
         let due = DateText.due(task)
-        if due != nil || !subs.isEmpty || !task.list.isEmpty || task.priority != .none {
+        if due != nil || !subs.isEmpty || !task.list.isEmpty || task.priority != .none || task.locationRemind || task.focusMinutes > 0 {
             HStack(spacing: 8) {
                 if let due {
                     Label(due, systemImage: task.remind ? "bell" : "calendar")
                         .foregroundStyle(task.isOverdue ? Color.red : Color.secondary)
                 }
                 if task.repeatRule != .none { Image(systemName: "repeat") }
+                if task.locationRemind && !task.locationName.isEmpty { Label(task.locationName, systemImage: "location") }
+                if task.focusMinutes > 0 { Label("\(task.focusMinutes)m", systemImage: "timer") }
                 if !subs.isEmpty { Label("\(subs.filter(\.done).count)/\(subs.count)", systemImage: "list.bullet") }
                 if !task.list.isEmpty { Text(task.list) }
                 if let c = task.priority.color {
@@ -183,6 +201,7 @@ struct TaskEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var newSubtask = ""
     @State private var deleting = false
+    @State private var focusing = false
     @FocusState private var titleFocused: Bool
 
     var body: some View {
@@ -217,6 +236,23 @@ struct TaskEditorView: View {
                 }
             }
 
+            if task.dueDate != nil && task.hasDueTime {
+                Section {
+                    Picker(selection: $task.durationMinutes) {
+                        ForEach([15, 30, 45, 60, 90, 120, 180, 240], id: \.self) { m in Text(m < 60 ? "\(m) min" : "\(m / 60)\(m % 60 == 30 ? ".5" : "") h").tag(m) }
+                    } label: { Label("Block Length", systemImage: "rectangle.split.1x2") }
+                } footer: { Text("How much time this takes on the Calendar's Day timeline.") }
+            }
+            LocationReminderSection(task: task)
+            Section {
+                Button { focusing = true } label: {
+                    HStack {
+                        Label("Start Focus Timer", systemImage: "timer")
+                        Spacer()
+                        if task.focusMinutes > 0 { Text("\(task.focusMinutes) min so far").foregroundStyle(.secondary) }
+                    }
+                }
+            }
             Section {
                 Picker(selection: $task.priority) {
                     ForEach(Priority.allCases) { Text($0.label).tag($0) }
@@ -257,6 +293,7 @@ struct TaskEditorView: View {
                 }
             }
         }
+        .sheet(isPresented: $focusing) { FocusTimerView(taskTitle: task.title, taskID: task.id) }
         .navigationTitle(isNew ? "New Task" : "Task")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { if isNew { titleFocused = true } }
@@ -270,6 +307,10 @@ struct TaskEditorView: View {
             } else if deleting {
                 TaskActions.delete(task, in: context)
             } else {
+                if isNew && task.dueDate == nil {
+                    let p = TaskParser.parse(task.title)
+                    if p.hasExtras { TaskParser.apply(p, to: task) }
+                }
                 Reminders.sync(task)
             }
         }
@@ -280,5 +321,37 @@ struct TaskEditorView: View {
         guard !text.isEmpty else { return }
         task.subtasks.append(Subtask(title: text))
         newSubtask = ""
+    }
+}
+
+
+/// Shows what the quick-add box understood before you press return.
+struct ParsedPreview: View {
+    let parsed: ParsedTask
+    var body: some View {
+        if parsed.hasExtras {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    chip(parsed.title, "text.cursor")
+                    if let d = parsed.dueDate {
+                        chip(parsed.hasTime ? "\(DateText.relativeDay(d)), \(d.formatted(date: .omitted, time: .shortened))" : DateText.relativeDay(d),
+                             parsed.hasTime ? "bell" : "calendar")
+                    }
+                    if parsed.priority != .none { chip(parsed.priority.label, "exclamationmark", parsed.priority.color) }
+                    if !parsed.list.isEmpty { chip(parsed.list, "tray") }
+                    if parsed.repeatRule != .none { chip(parsed.repeatRule.label, "repeat") }
+                    if let m = parsed.minutes { chip("\(m) min", "timer") }
+                }
+            }
+        }
+    }
+
+    private func chip(_ text: String, _ symbol: String, _ color: Color? = nil) -> some View {
+        Label(text, systemImage: symbol)
+            .font(.hush(.caption))
+            .lineLimit(1)
+            .padding(.horizontal, 9).padding(.vertical, 5)
+            .background((color ?? Color.accentColor).opacity(0.15), in: Capsule())
+            .foregroundStyle(color ?? Color.accentColor)
     }
 }

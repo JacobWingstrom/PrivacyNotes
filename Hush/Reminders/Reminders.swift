@@ -49,6 +49,7 @@ enum Reminders {
     // MARK: Per-item sync
 
     static func sync(_ task: TaskItem) {
+        syncLocation(task)
         let id = "task.\(task.id.uuidString)"
         if let date = task.reminderDate(defaultMinutes: defaultMinutes) {
             schedule(id: id, title: task.title.isEmpty ? "Task" : task.title,
