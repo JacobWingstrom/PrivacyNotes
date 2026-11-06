@@ -13,6 +13,10 @@ final class Note {
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
     var folderID: UUID? = nil
+    var wordGoal: Int = 0
+    /// When locked, the text lives encrypted in lockedBody and body is empty.
+    var isLocked: Bool = false
+    var lockedBody: Data = Data()
     var spaceID: String = ""
     var deletedAt: Date? = nil
 
@@ -39,7 +43,7 @@ final class Note {
     var color: Color? { NoteColor(rawValue: colorName)?.color }
 
     /// Preview text with Markdown symbols removed.
-    var plainPreview: String { Markdown.plain(preview) }
+    var plainPreview: String { isLocked ? "Locked" : Markdown.plain(preview) }
 
     var wordCount: Int { (title + " " + body).split { $0.isWhitespace || $0.isNewline }.count }
 

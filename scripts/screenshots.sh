@@ -47,3 +47,4 @@ shot lab-services -startSection homelab -labTab services
 shot board-open -startSection boards -demoOpenBoard YES
 shot lab-proxmox -startSection homelab -labTab proxmox
 shot lab-stacks -startSection homelab -labTab stacks
+shot notes-graph -startSection notes -demoGraph YES

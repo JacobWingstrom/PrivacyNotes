@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import LocalAuthentication
 
 struct NoteEditorView: View {
     @Bindable var note: Note
@@ -26,6 +27,17 @@ struct NoteEditorView: View {
     @State private var attachment: AttachmentKind?
     @State private var linkedNote: Note?
     @State private var share: ShareItem?
+    @State private var unlocked = false
+    @State private var lockedText = ""
+    @State private var finding = false
+    @State private var findText = ""
+    @State private var replaceText = ""
+    @State private var matchIndex = 0
+    @State private var selectRequest: NSRange?
+    @State private var makingTable = false
+    @State private var showOutline = false
+    @State private var settingGoal = false
+    @State private var goalText = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -65,14 +77,25 @@ struct NoteEditorView: View {
                 .padding(.top, 8)
             }
 
-            MarkdownEditor(text: $note.body, pendingInsert: $pendingInsert,
-                           fontDesign: settings.fontStyle, accent: UIColor(settings.accentColor),
-                           horizontalInset: 16, palette: palette,
-                           onOpenNoteLink: openLink,
-                           onLinkPicker: { pickingLink = true },
-                           onAttach: { choosingAttachment = true })
+            if finding { findBar }
 
-            AttachmentStrip(noteID: note.id) { text in pendingInsert = "\n> " + text.replacingOccurrences(of: "\n", with: "\n> ") + "\n" }
+            if note.isLocked && !unlocked {
+                LockedNoteView { unlock() }
+            } else {
+                MarkdownEditor(text: bodyBinding, pendingInsert: $pendingInsert,
+                               fontDesign: settings.fontStyle, accent: UIColor(settings.accentColor),
+                               horizontalInset: 16, palette: palette,
+                               onOpenNoteLink: openLink,
+                               onLinkPicker: { pickingLink = true },
+                               onAttach: { choosingAttachment = true },
+                               onTable: { makingTable = true },
+                               highlight: finding ? findText : "",
+                               selectRequest: $selectRequest)
+
+                wordBar
+
+                AttachmentStrip(noteID: note.id) { text in pendingInsert = "\n> " + text.replacingOccurrences(of: "\n", with: "\n> ") + "\n" }
+            }
         }
         .background {
             ZStack {
@@ -91,12 +114,22 @@ struct NoteEditorView: View {
         }
         .onChange(of: note.title) { note.updatedAt = .now }
         .onChange(of: note.body) { note.updatedAt = .now }
+        .onChange(of: lockedText) { if unlocked { note.updatedAt = .now } }
         .onAppear {
             if original == nil { original = (note.title, note.body) }
             if note.isEmpty { titleFocused = true }
         }
         .onDisappear(perform: finish)
         .fullScreenCover(isPresented: $zen) { ZenEditor(note: note) }
+        .sheet(isPresented: $makingTable) { TableMaker { pendingInsert = $0 } }
+        .sheet(isPresented: $showOutline) {
+            OutlineSheet(text: bodyBinding.wrappedValue) { range in selectRequest = range }
+        }
+        .alert("Word Goal", isPresented: $settingGoal) {
+            TextField("Words (0 for none)", text: $goalText).keyboardType(.numberPad)
+            Button("Save") { note.wordGoal = max(Int(goalText) ?? 0, 0) }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("Show progress toward a word count for this note.") }
         .sheet(isPresented: $showInfo) { NavigationStack { NoteInfoView(note: note) { openLink($0) } } }
         .sheet(isPresented: $showHistory) { NavigationStack { NoteHistoryView(note: note) } }
         .sheet(isPresented: $choosingFolder) { NavigationStack { FolderPicker(selection: $note.folderID) } }
@@ -145,6 +178,18 @@ struct NoteEditorView: View {
                 Button { pickingIcon = true } label: { Label("Icon", systemImage: "star.square") }
             }
             Section {
+                Button { withAnimation { finding = true } } label: { Label("Find & Replace", systemImage: "magnifyingglass") }
+                Button { showOutline = true } label: { Label("Outline", systemImage: "list.bullet.indent") }
+                Button { makingTable = true } label: { Label("Insert Table", systemImage: "tablecells") }
+                Button { tidyTables() } label: { Label("Tidy Tables", systemImage: "tablecells.badge.ellipsis") }
+                Button { goalText = note.wordGoal > 0 ? "\(note.wordGoal)" : ""; settingGoal = true } label: { Label("Word Goal…", systemImage: "target") }
+            }
+            Section {
+                Button { toggleLock() } label: {
+                    Label(note.isLocked ? "Remove Lock" : "Lock Note", systemImage: note.isLocked ? "lock.open" : "lock")
+                }
+            }
+            Section {
                 Button { choosingAttachment = true } label: { Label("Attach…", systemImage: "paperclip") }
                 Button { pickingTemplate = true } label: { Label("Apply Template…", systemImage: "doc.on.doc") }
                 Button { templateName = note.displayTitle; savingTemplate = true } label: { Label("Save as Template", systemImage: "square.and.arrow.down.on.square") }
@@ -170,6 +215,11 @@ struct NoteEditorView: View {
     }
 
     private func finish() {
+        if note.isLocked {
+            if unlocked { NoteLock.save(note, text: lockedText) }
+            if deleting { TrashActions.trash(note) }
+            return
+        }
         if note.isEmpty && !hasAttachments {
             context.delete(note)
             return
@@ -179,10 +229,125 @@ struct NoteEditorView: View {
             return
         }
         // Keep the previous version when something changed.
-        if let (t, b) = original, (t != note.title || b != note.body), !(t.isEmpty && b.isEmpty) {
+        if !note.isLocked, let (t, b) = original, (t != note.title || b != note.body), !(t.isEmpty && b.isEmpty) {
             NoteHistory.save(noteID: note.id, title: t, body: b, in: context)
         }
         original = (note.title, note.body)
+    }
+
+    // MARK: Locking, find, tables
+
+    /// The text the editor works on: the decrypted copy for locked notes (never written to disk in plain text).
+    private var bodyBinding: Binding<String> {
+        note.isLocked ? $lockedText : $note.body
+    }
+
+    private func unlock() {
+        NoteLock.authenticate("Unlock “\(note.displayTitle)”") { ok in
+            guard ok else { return }
+            lockedText = NoteLock.read(note)
+            unlocked = true
+        }
+    }
+
+    private func toggleLock() {
+        if note.isLocked {
+            NoteLock.authenticate("Remove the lock from this note") { ok in
+                guard ok else { return }
+                if unlocked { NoteLock.save(note, text: lockedText) }
+                NoteLock.remove(note)
+                unlocked = false
+            }
+        } else {
+            NoteLock.authenticate("Lock this note") { ok in
+                guard ok else { return }
+                let text = note.body
+                NoteLock.lock(note, text: text)
+                NoteHistory.deleteAll(noteID: note.id, in: context)
+                lockedText = text
+                unlocked = true
+            }
+        }
+    }
+
+    private var matches: [NSRange] {
+        let text = bodyBinding.wrappedValue as NSString
+        guard !findText.isEmpty else { return [] }
+        var out: [NSRange] = []
+        var search = NSRange(location: 0, length: text.length)
+        while search.length > 0 {
+            let r = text.range(of: findText, options: [.caseInsensitive], range: search)
+            guard r.location != NSNotFound else { break }
+            out.append(r)
+            search = NSRange(location: r.upperBound, length: text.length - r.upperBound)
+        }
+        return out
+    }
+
+    private var findBar: some View {
+        let m = matches
+        return VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Find", text: $findText).autocorrectionDisabled().textInputAutocapitalization(.never)
+                    .onChange(of: findText) { matchIndex = 0 }
+                Text(m.isEmpty ? (findText.isEmpty ? "" : "0") : "\(min(matchIndex + 1, m.count))/\(m.count)")
+                    .font(.hush(.caption).monospacedDigit()).foregroundStyle(.secondary)
+                Button { step(-1, m) } label: { Image(systemName: "chevron.up") }.disabled(m.isEmpty)
+                Button { step(1, m) } label: { Image(systemName: "chevron.down") }.disabled(m.isEmpty)
+                Button("Done") { withAnimation { finding = false; findText = "" } }.font(.hush(.subheadline).weight(.semibold))
+            }
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.2.squarepath").foregroundStyle(.secondary)
+                TextField("Replace with", text: $replaceText).autocorrectionDisabled().textInputAutocapitalization(.never)
+                Button("Replace") { replaceCurrent(m) }.disabled(m.isEmpty)
+                Button("All") { replaceAll() }.disabled(m.isEmpty)
+            }
+        }
+        .buttonStyle(.borderless)
+        .padding(10)
+        .background(palette.surface)
+        .overlay(alignment: .bottom) { Rectangle().fill(palette.border).frame(height: 1) }
+    }
+
+    private func step(_ d: Int, _ m: [NSRange]) {
+        guard !m.isEmpty else { return }
+        matchIndex = (matchIndex + d + m.count) % m.count
+        selectRequest = m[matchIndex]
+    }
+
+    private func replaceCurrent(_ m: [NSRange]) {
+        guard !m.isEmpty else { return }
+        let i = min(matchIndex, m.count - 1)
+        let ns = bodyBinding.wrappedValue as NSString
+        bodyBinding.wrappedValue = ns.replacingCharacters(in: m[i], with: replaceText)
+    }
+
+    private func replaceAll() {
+        bodyBinding.wrappedValue = bodyBinding.wrappedValue.replacingOccurrences(of: findText, with: replaceText, options: .caseInsensitive)
+    }
+
+    private func tidyTables() {
+        bodyBinding.wrappedValue = TableTidy.tidy(bodyBinding.wrappedValue)
+    }
+
+    private var wordBar: some View {
+        let words = bodyBinding.wrappedValue.split { $0.isWhitespace || $0.isNewline }.count
+        return HStack(spacing: 10) {
+            Text("\(words) word\(words == 1 ? "" : "s")").monospacedDigit()
+            if note.wordGoal > 0 {
+                ProgressView(value: min(Double(words), Double(note.wordGoal)), total: Double(note.wordGoal))
+                    .frame(maxWidth: 140)
+                Text("\(Int(min(Double(words) / Double(note.wordGoal), 1) * 100))% of \(note.wordGoal)").monospacedDigit()
+                if words >= note.wordGoal { Image(systemName: "checkmark.seal.fill").foregroundStyle(.green) }
+            }
+            Spacer()
+            if note.isLocked { Label("Locked", systemImage: "lock.fill").labelStyle(.iconOnly).foregroundStyle(.tint) }
+        }
+        .font(.hush(.caption))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal)
+        .padding(.vertical, 6)
     }
 
     private var hasAttachments: Bool {
@@ -261,6 +426,10 @@ struct ZenEditor: View {
 
 enum NoteHistory {
     static let maxVersions = 50
+
+    static func deleteAll(noteID: UUID, in ctx: ModelContext) {
+        for v in (try? ctx.fetch(FetchDescriptor<NoteVersion>())) ?? [] where v.noteID == noteID { ctx.delete(v) }
+    }
 
     static func save(noteID: UUID, title: String, body: String, in ctx: ModelContext) {
         ctx.insert(NoteVersion(noteID: noteID, title: title, body: body))
@@ -410,5 +579,174 @@ struct NoteLinkPicker: View {
         .navigationTitle("Link to Note")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+    }
+}
+
+
+// MARK: - Note lock
+
+enum NoteLock {
+    static func lock(_ n: Note, text: String) {
+        n.lockedBody = DataCrypto.seal(Data(text.utf8))
+        n.body = ""
+        n.isLocked = true
+    }
+
+    static func read(_ n: Note) -> String {
+        DataCrypto.open(n.lockedBody).map { String(decoding: $0, as: UTF8.self) } ?? ""
+    }
+
+    static func save(_ n: Note, text: String) {
+        n.lockedBody = DataCrypto.seal(Data(text.utf8))
+    }
+
+    static func remove(_ n: Note) {
+        n.body = read(n)
+        n.lockedBody = Data()
+        n.isLocked = false
+    }
+
+    /// Face ID or Touch ID, falling back to the iPhone passcode.
+    static func authenticate(_ reason: String, done: @escaping (Bool) -> Void) {
+        let ctx = LAContext()
+        var err: NSError?
+        guard ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &err) else { done(true); return }
+        ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { ok, _ in
+            DispatchQueue.main.async { done(ok) }
+        }
+    }
+}
+
+private struct LockedNoteView: View {
+    var unlock: () -> Void
+    var body: some View {
+        VStack(spacing: 14) {
+            Spacer()
+            Image(systemName: "lock.doc.fill").font(.system(size: 46)).foregroundStyle(.tint)
+            Text("This note is locked").font(.hush(.headline))
+            Text("Its text is encrypted. Unlock with Face ID to read or edit it.").font(.hush(.subheadline))
+                .foregroundStyle(.secondary).multilineTextAlignment(.center)
+            Button("Unlock", action: unlock).buttonStyle(.borderedProminent)
+            Spacer()
+            Spacer()
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { unlock() } }
+    }
+}
+
+// MARK: - Tables
+
+struct TableMaker: View {
+    var onInsert: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var columns = 3
+    @State private var rows = 3
+    @State private var headers = "Name, Value, Notes"
+
+    var body: some View {
+        NavigationStack {
+            HushForm {
+                Section {
+                    Stepper("Columns: \(columns)", value: $columns, in: 1...8)
+                    Stepper("Rows: \(rows)", value: $rows, in: 1...30)
+                    TextField("Headers, comma separated", text: $headers)
+                }
+                Section("Preview") {
+                    Text(markdown).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+                }
+            }
+            .navigationTitle("Insert Table")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Insert") { onInsert("\n" + markdown + "\n"); dismiss() } }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private var markdown: String {
+        var names = headers.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        while names.count < columns { names.append("Column \(names.count + 1)") }
+        names = Array(names.prefix(columns))
+        let header = "| " + names.joined(separator: " | ") + " |"
+        let rule = "|" + Array(repeating: "---|", count: columns).joined()
+        let row = "|" + Array(repeating: "  |", count: columns).joined()
+        return ([header, rule] + Array(repeating: row, count: rows)).joined(separator: "\n")
+    }
+}
+
+/// Pads Markdown table cells so the pipes line up.
+enum TableTidy {
+    static func tidy(_ text: String) -> String {
+        var lines = text.components(separatedBy: "\n")
+        var i = 0
+        while i < lines.count {
+            guard lines[i].trimmingCharacters(in: .whitespaces).hasPrefix("|") else { i += 1; continue }
+            var j = i
+            while j < lines.count, lines[j].trimmingCharacters(in: .whitespaces).hasPrefix("|") { j += 1 }
+            let rows = lines[i..<j].map { line -> [String] in
+                var t = line.trimmingCharacters(in: .whitespaces)
+                if t.hasPrefix("|") { t.removeFirst() }
+                if t.hasSuffix("|") { t.removeLast() }
+                return t.components(separatedBy: "|").map { $0.trimmingCharacters(in: .whitespaces) }
+            }
+            let cols = rows.map(\.count).max() ?? 0
+            let isRule: ([String]) -> Bool = { $0.allSatisfy { c in !c.isEmpty && c.allSatisfy { "-:".contains($0) } } }
+            var widths = Array(repeating: 3, count: cols)
+            for r in rows where !isRule(r) { for (k, c) in r.enumerated() { widths[k] = max(widths[k], c.count) } }
+            let formatted = rows.map { r -> String in
+                let cells = (0..<cols).map { k -> String in
+                    let c = k < r.count ? r[k] : ""
+                    if isRule(r) { return String(repeating: "-", count: widths[k]) }
+                    return c + String(repeating: " ", count: widths[k] - c.count)
+                }
+                return "| " + cells.joined(separator: " | ") + " |"
+            }
+            lines.replaceSubrange(i..<j, with: formatted)
+            i = j
+        }
+        return lines.joined(separator: "\n")
+    }
+}
+
+// MARK: - Outline
+
+private struct OutlineSheet: View {
+    let text: String
+    var jump: (NSRange) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        let ns = text as NSString
+        let re = try? NSRegularExpression(pattern: "^(#{1,6})[ \\t]+(.+)$", options: .anchorsMatchLines)
+        let items: [(level: Int, title: String, range: NSRange)] = (re?.matches(in: text, range: NSRange(location: 0, length: ns.length)) ?? []).map {
+            ($0.range(at: 1).length, ns.substring(with: $0.range(at: 2)), $0.range)
+        }
+        NavigationStack {
+            List {
+                ForEach(items.indices, id: \.self) { i in
+                    let item = items[i]
+                    Button {
+                        jump(NSRange(location: item.range.location, length: 0))
+                        dismiss()
+                    } label: {
+                        Text(item.title)
+                            .font(.hush(item.level == 1 ? .headline : (item.level == 2 ? .subheadline : .footnote)))
+                            .foregroundStyle(.primary)
+                            .padding(.leading, CGFloat(item.level - 1) * 16)
+                    }
+                    .hushRow()
+                }
+                if items.isEmpty { EmptyMessage(text: "No headings yet. Start a line with # to make one.") }
+            }
+            .hushList()
+            .navigationTitle("Outline")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
+        .presentationDetents([.medium, .large])
     }
 }

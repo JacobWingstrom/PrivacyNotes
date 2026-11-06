@@ -48,6 +48,23 @@ enum DemoData {
 
         `docker compose pull && docker compose up -d`
         """
+        md.body += """
+
+
+        ```yaml
+        services:
+          jellyfin:
+            image: jellyfin/jellyfin:latest   # media server
+            ports:
+              - "8096:8096"
+            restart: unless-stopped
+        ```
+
+        | Host | IP | Role |
+        |---|---|---|
+        | pve-01 | 10.0.10.10 | Hypervisor |
+        | truenas | 10.0.10.20 | Storage |
+        """
         md.updatedAt = day(0, 11)
         ctx.insert(md)
 

@@ -29,6 +29,10 @@ enum Backup {
 
     struct NoteDTO: Codable {
         var id: UUID, title: String, body: String, isPinned: Bool, colorName: String, emoji: String, tags: [String], createdAt: Date, updatedAt: Date
+        var isLocked: Bool? = nil
+        var lockedText: String? = nil
+        var wordGoal: Int? = nil
+        var folderID: UUID? = nil
     }
     struct TaskDTO: Codable {
         var id: UUID, title: String, notes: String, isDone: Bool, dueDate: Date?, hasDueTime: Bool, remind: Bool
@@ -72,7 +76,8 @@ enum Backup {
     static func makePayload(_ ctx: ModelContext, includeVault: Bool) throws -> Payload {
         var p = Payload()
         p.notes = try ctx.fetch(FetchDescriptor<Note>()).map {
-            NoteDTO(id: $0.id, title: $0.title, body: $0.body, isPinned: $0.isPinned, colorName: $0.colorName, emoji: $0.emoji, tags: $0.tags, createdAt: $0.createdAt, updatedAt: $0.updatedAt)
+            NoteDTO(id: $0.id, title: $0.title, body: $0.body, isPinned: $0.isPinned, colorName: $0.colorName, emoji: $0.emoji, tags: $0.tags, createdAt: $0.createdAt, updatedAt: $0.updatedAt,
+                    isLocked: $0.isLocked, lockedText: $0.isLocked ? NoteLock.read($0) : nil, wordGoal: $0.wordGoal, folderID: $0.folderID)
         }
         p.tasks = try ctx.fetch(FetchDescriptor<TaskItem>()).map {
             TaskDTO(id: $0.id, title: $0.title, notes: $0.notes, isDone: $0.isDone, dueDate: $0.dueDate, hasDueTime: $0.hasDueTime, remind: $0.remind,
@@ -135,6 +140,8 @@ enum Backup {
             let n = Note()
             n.id = d.id; n.title = d.title; n.body = d.body; n.isPinned = d.isPinned; n.colorName = d.colorName
             n.emoji = d.emoji; n.tags = d.tags; n.createdAt = d.createdAt; n.updatedAt = d.updatedAt
+            n.wordGoal = d.wordGoal ?? 0; n.folderID = d.folderID
+            if d.isLocked == true, let text = d.lockedText { NoteLock.lock(n, text: text) }
             ctx.insert(n); added += 1
         }
         let taskIDs = Set(try ctx.fetch(FetchDescriptor<TaskItem>()).map(\.id))

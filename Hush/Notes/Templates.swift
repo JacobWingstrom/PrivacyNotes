@@ -584,9 +584,19 @@ struct TemplatePicker: View {
 struct TemplatesSettings: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \NoteTemplate.createdAt, order: .reverse) private var mine: [NoteTemplate]
+    @AppStorage(DailyNote.templateKey) private var dailyTemplate = "Daily Journal"
 
     var body: some View {
         HushForm {
+            Section {
+                Picker("Today's Note Uses", selection: $dailyTemplate) {
+                    Text("Blank").tag("")
+                    ForEach(mine) { Text($0.name).tag($0.name) }
+                    ForEach(TemplateLibrary.all) { Text($0.name).tag($0.name) }
+                }
+            } footer: {
+                Text("Notes → ⋯ → Today's Note opens one note per day, tagged #daily and linked to yesterday's.")
+            }
             Section {
                 if mine.isEmpty {
                     Text("Save any note as a template from its ⋯ menu.").foregroundStyle(.secondary)

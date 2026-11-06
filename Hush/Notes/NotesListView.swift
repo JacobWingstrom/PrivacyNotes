@@ -21,6 +21,7 @@ struct NotesListView: View {
     @State private var movingFolder: Folder?
     @State private var moveTarget: UUID?
     @State private var openFolder: Folder?
+    @State private var showGraph = false
 
     private var notes: [Note] { notesStored.live(settings.spaceFilter) }
     private var folders: [Folder] { foldersStored.live(settings.spaceFilter) }
@@ -129,6 +130,9 @@ struct NotesListView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    Button { newNote = DailyNote.open(in: context) } label: { Label("Today's Note", systemImage: "sun.max") }
+                    Button { showGraph = true } label: { Label("Graph View", systemImage: "point.3.filled.connected.trianglepath.dotted") }
+                    Divider()
                     Button { pickingTemplate = true } label: { Label("New from Template", systemImage: "doc.on.doc") }
                     Button { folderName = ""; creatingFolder = true } label: { Label(folder == nil ? "New Folder" : "New Subfolder", systemImage: "folder.badge.plus") }
                 } label: { Image(systemName: "doc.badge.plus") }
@@ -138,6 +142,7 @@ struct NotesListView: View {
         .navigationDestination(for: Note.self) { NoteEditorView(note: $0) }
         .navigationDestination(item: $newNote) { NoteEditorView(note: $0) }
         .navigationDestination(item: $openFolder) { NotesListView(title: $0.name, folder: $0) }
+        .navigationDestination(isPresented: $showGraph) { NotesGraphView() }
         .sheet(isPresented: $pickingTemplate) {
             TemplatePicker { title, body, emoji in
                 let n = makeNote()
@@ -163,6 +168,7 @@ struct NotesListView: View {
         .onCreate(.notes) { if folder == nil { create() } }
         .onAppear {
             if let t = router.noteTag { tagFilter = t; router.noteTag = nil }
+            if UserDefaults.standard.bool(forKey: "demoGraph"), folder == nil { showGraph = true }
             if folder == nil, let fid = router.noteFolder {
                 router.noteFolder = nil
                 openFolder = folders.first { $0.id == fid }

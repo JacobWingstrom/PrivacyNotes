@@ -521,7 +521,7 @@ struct SingleNoteWidget: View {
                 NavigationLink { NoteEditorView(note: note) } label: {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(note.displayTitle).font(.hush(.headline))
-                        Text(Markdown.plain(note.body))
+                        Text(note.isLocked ? "This note is locked." : Markdown.plain(note.body))
                             .font(.hush(.callout))
                             .foregroundStyle(.secondary)
                             .lineLimit(widget.size == .large ? 14 : (widget.size == .small ? 5 : 6))
