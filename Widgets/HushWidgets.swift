@@ -336,7 +336,7 @@ private struct HushControl {
     static func button(_ kind: String, _ name: LocalizedStringResource, _ symbol: String, _ url: String) -> some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: kind) {
             ControlWidgetButton(action: OpenURLIntent(URL(string: url)!)) {
-                Label(name, systemImage: symbol)
+                Label { Text(name) } icon: { Image(systemName: symbol) }
             }
         }
         .displayName(name)
