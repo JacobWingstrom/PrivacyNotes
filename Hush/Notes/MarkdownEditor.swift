@@ -212,14 +212,6 @@ enum MarkdownStyler {
             CodeHighlighter.highlight(storage, range: m.range(at: 2), language: lang, colors: colors)
             storage.addAttribute(.foregroundColor, value: colors.dim, range: NSRange(location: m.range.location, length: 3))
         }
-        // Hide formatting symbols except on the line being edited (like a word processor).
-        if hideMarkers {
-            let tiny = UIFont.systemFont(ofSize: 0.01)
-            for r in markers where r.length > 0 && NSMaxRange(r) <= storage.length {
-                if let a = activeRange, NSIntersectionRange(a, r).length > 0 || (r.location >= a.location && r.location <= NSMaxRange(a)) { continue }
-                storage.addAttributes([.font: tiny, .foregroundColor: UIColor.clear, .backgroundColor: UIColor.clear], range: r)
-            }
-        }
         if !highlight.isEmpty {
             var search = NSRange(location: 0, length: text.length)
             while search.length > 0 {
@@ -242,6 +234,14 @@ enum MarkdownStyler {
             storage.addAttribute(.foregroundColor, value: colors.dim, range: NSRange(location: m.range(at: 1).upperBound, length: m.range.upperBound - m.range(at: 1).upperBound))
             markers.append(NSRange(location: m.range.location, length: 1))
             markers.append(NSRange(location: m.range(at: 1).upperBound, length: m.range.upperBound - m.range(at: 1).upperBound))
+        }
+        // Hide formatting symbols except on the line being edited (like a word processor).
+        if hideMarkers {
+            let tiny = UIFont.systemFont(ofSize: 0.01)
+            for r in markers where r.length > 0 && NSMaxRange(r) <= storage.length {
+                if let a = activeRange, NSIntersectionRange(a, r).length > 0 || (r.location >= a.location && r.location <= NSMaxRange(a)) { continue }
+                storage.addAttributes([.font: tiny, .foregroundColor: UIColor.clear, .backgroundColor: UIColor.clear], range: r)
+            }
         }
         storage.endEditing()
     }
