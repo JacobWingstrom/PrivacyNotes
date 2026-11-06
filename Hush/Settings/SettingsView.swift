@@ -79,6 +79,8 @@ struct SettingsView: View {
             .safeAreaInset(edge: .top, spacing: 0) { SearchHeader(text: $search, prompt: "Search settings") }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(palette.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }

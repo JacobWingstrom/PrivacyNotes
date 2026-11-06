@@ -20,7 +20,8 @@ struct ContactsView: View {
     }
 
     private var groups: [(String, [Contact])] {
-        let dict = Dictionary(grouping: filtered) { c -> String in
+        let rest = search.isEmpty ? filtered.filter { !$0.isFavorite } : filtered
+        let dict = Dictionary(grouping: rest) { c -> String in
             let ch = c.sortKey.first.map { String($0).uppercased() } ?? "#"
             return ch.rangeOfCharacter(from: .letters) == nil ? "#" : ch
         }

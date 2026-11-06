@@ -89,11 +89,12 @@ struct SectionSwitcher: View {
             }
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: router.section.symbol).font(.headline).foregroundStyle(.tint)
+                Image(systemName: router.section.symbol).font(.headline).foregroundStyle(settings.accentColor)
                 Text(settings.title(for: router.section)).font(.title3.bold()).foregroundStyle(.primary)
                 Image(systemName: "chevron.down").font(.caption.weight(.bold)).foregroundStyle(.secondary)
             }
         }
+        .tint(.primary)
         .accessibilityLabel("Section: \(settings.title(for: router.section)). Switch section")
     }
 }

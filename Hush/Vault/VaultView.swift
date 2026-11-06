@@ -7,6 +7,7 @@ struct VaultView: View {
     let title: String
     @Environment(LockManager.self) private var lock
     @Environment(AppSettings.self) private var settings
+    @Environment(\.palette) private var palette
     @State private var hasPasscode = Passcode.vault.isSet
     @State private var settingUp = false
 
@@ -29,6 +30,8 @@ struct VaultView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(palette.background)
         .navigationTitle(title)
         .sheet(isPresented: $settingUp) {
             PasscodeSetupView(title: "Vault Passcode") { code in
