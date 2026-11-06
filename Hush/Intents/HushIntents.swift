@@ -61,7 +61,10 @@ struct LogHabitIntent: AppIntent {
         try ctx.save()
         WidgetCenter.shared.reloadAllTimelines()
         let streak = h.streak
-        return .result(dialog: streak > 1 ? "Logged \(h.name). That's a \(streak)-day streak!" : "Logged \(h.name).")
+        if streak > 1 {
+            return .result(dialog: "Logged \(h.name). That's a \(streak)-day streak!")
+        }
+        return .result(dialog: "Logged \(h.name).")
     }
 }
 

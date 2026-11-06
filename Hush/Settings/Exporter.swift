@@ -139,7 +139,7 @@ enum Exporter {
         let day = DateFormatter(); day.locale = f.locale; day.dateFormat = "yyyyMMdd"
         func esc(_ s: String) -> String {
             s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\n", with: "\\n")
-                .replacingOccurrences(of: ",", with: "\\,").replacingOccurrences(of: ";", with: "\;")
+                .replacingOccurrences(of: ",", with: "\\,").replacingOccurrences(of: ";", with: "\\;")
         }
         var lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Hush//EN"]
         for e in items {
