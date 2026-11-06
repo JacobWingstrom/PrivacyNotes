@@ -175,6 +175,11 @@ enum EditorPrefs {
     static var autocorrect: Bool { d.object(forKey: "editorAutocorrect") as? Bool ?? true }
     static var spellCheck: Bool { d.object(forKey: "editorSpellCheck") as? Bool ?? true }
     static var smartPunctuation: Bool { d.bool(forKey: "editorSmartPunctuation") }
+    /// Hide **, ## and other symbols except on the line you're editing.
+    static var hideMarkers: Bool { d.object(forKey: "editorHideMarkers") as? Bool ?? true }
+    static var slashCommands: Bool { d.object(forKey: "editorSlashCommands") as? Bool ?? true }
+    /// top, keyboard or both
+    static var formatBar: String { d.string(forKey: "editorFormatBar") ?? "both" }
 }
 
 private struct PaletteKey: EnvironmentKey {

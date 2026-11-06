@@ -207,6 +207,9 @@ struct EditorSettings: View {
     @AppStorage("editorAutocorrect") private var autocorrect = true
     @AppStorage("editorSpellCheck") private var spellCheck = true
     @AppStorage("editorSmartPunctuation") private var smartPunctuation = false
+    @AppStorage("editorHideMarkers") private var hideMarkers = true
+    @AppStorage("editorSlashCommands") private var slashCommands = true
+    @AppStorage("editorFormatBar") private var formatBar = "both"
     @Environment(AppSettings.self) private var settings
 
     var body: some View {
@@ -233,6 +236,17 @@ struct EditorSettings: View {
                     Text("Medium").tag(600.0)
                     Text("Narrow").tag(480.0)
                 }
+            }
+            Section {
+                Picker("Formatting Bar", selection: $formatBar) {
+                    Text("Top & Keyboard").tag("both")
+                    Text("Top of Note").tag("top")
+                    Text("Above Keyboard").tag("keyboard")
+                }
+                Toggle("Hide Markdown Symbols", isOn: $hideMarkers)
+                Toggle("Slash Commands", isOn: $slashCommands)
+            } header: { Text("Formatting") } footer: {
+                Text("With symbols hidden, notes look finished — the ** and ## only appear on the line you're editing. Type / at the start of a line to insert headings, lists, callouts, code, tables and more.")
             }
             Section {
                 Toggle("Typewriter Scrolling", isOn: $typewriter)

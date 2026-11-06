@@ -42,7 +42,10 @@ enum DemoData {
         - [ ] Test restoring last night's **backup**
         - [ ] Move *media server* to the new VLAN
 
-        > Remember: snapshot before every upgrade.
+        > [!WARNING] Before upgrading
+        > Take a snapshot and check ==backups== first.
+
+        <u>Owner</u>: me · ~~old NAS~~ retired
 
         See [[Trip ideas]] for the off-site backup drive plan.
 

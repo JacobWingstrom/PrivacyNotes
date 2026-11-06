@@ -37,6 +37,8 @@ struct NoteEditorView: View {
     @State private var makingTable = false
     @State private var showOutline = false
     @State private var settingGoal = false
+    @State private var editorCommand: EditorCommand?
+    @State private var slashing = false
     @State private var goalText = ""
 
     var body: some View {
@@ -79,6 +81,11 @@ struct NoteEditorView: View {
 
             if finding { findBar }
 
+            if EditorPrefs.formatBar != "keyboard" && !(note.isLocked && !unlocked) {
+                FormatBar(command: $editorCommand, onAttach: { choosingAttachment = true }, onTablePicker: { makingTable = true })
+                    .padding(.top, 8)
+            }
+
             if note.isLocked && !unlocked {
                 LockedNoteView { unlock() }
             } else {
@@ -90,7 +97,10 @@ struct NoteEditorView: View {
                                onAttach: { choosingAttachment = true },
                                onTable: { makingTable = true },
                                highlight: finding ? findText : "",
-                               selectRequest: $selectRequest)
+                               selectRequest: $selectRequest,
+                               command: $editorCommand,
+                               onSlash: { slashing = true },
+                               showAccessoryBar: EditorPrefs.formatBar != "top")
 
                 wordBar
 
@@ -122,6 +132,7 @@ struct NoteEditorView: View {
         .onDisappear(perform: finish)
         .fullScreenCover(isPresented: $zen) { ZenEditor(note: note) }
         .sheet(isPresented: $makingTable) { TableMaker { pendingInsert = $0 } }
+        .sheet(isPresented: $slashing) { SlashMenu { editorCommand = $0 } }
         .sheet(isPresented: $showOutline) {
             OutlineSheet(text: bodyBinding.wrappedValue) { range in selectRequest = range }
         }
