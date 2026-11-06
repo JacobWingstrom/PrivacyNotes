@@ -32,3 +32,7 @@ shot drawer -startSection notes -demoOpenDrawer YES
 shot settings -startSection notes -demoOpenSettings YES
 shot light-notes -startSection notes -theme light
 shot note-editor -startSection notes -demoOpenNote YES
+shot monokai-notes -startSection notes -theme spectrum -accentHex FF6188 -fontStyle jetbrainsMono
+shot monokai-editor -startSection notes -demoOpenNote YES -theme spectrum -accentHex FF6188 -fontStyle jetbrainsMono
+shot dracula-home -startSection home -theme vampire -accentHex BD93F9 -fontStyle firaCode
+shot latte-habits -startSection habits -theme latte -accentHex 8839EF -fontStyle inter
