@@ -39,3 +39,8 @@ shot latte-habits -startSection habits -theme latte -accentHex 8839EF -fontStyle
 shot lock -startSection home -demoLock YES
 shot home-edit -startSection home -demoHomeEdit YES
 shot journal-mood -startSection journals
+shot lab-overview -startSection homelab -labTab overview
+shot lab-devices -startSection homelab -labTab devices
+shot lab-diagram -startSection homelab -labTab diagrams -demoOpenDiagram YES
+shot lab-network -startSection homelab -labTab network
+shot lab-services -startSection homelab -labTab services

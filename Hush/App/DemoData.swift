@@ -89,6 +89,68 @@ enum DemoData {
         ctx.insert(c)
         let c2 = Contact(); c2.firstName = "Jordan"; c2.lastName = "Lee"
         ctx.insert(c2)
+        seedHomelab(ctx)
         try? ctx.save()
+    }
+
+    private static func seedHomelab(_ ctx: ModelContext) {
+        func dev(_ name: String, _ kind: DeviceKind, _ ip: String, _ watts: Double, host: LabDevice? = nil, os: String = "", model: String = "") -> LabDevice {
+            let d = LabDevice(name: name, kind: kind)
+            d.ip = ip; d.powerWatts = watts; d.hostID = host?.id; d.os = os; d.model = model
+            ctx.insert(d)
+            return d
+        }
+        let modem = dev("ISP Modem", .modem, "192.168.100.1", 8)
+        let fw = dev("opnsense", .firewall, "10.0.10.1", 18, os: "OPNsense 25.1", model: "Protectli VP2420")
+        let sw = dev("core-switch", .switchDevice, "10.0.10.2", 22, model: "8-port 2.5G")
+        sw.portCount = 8
+        let ap = dev("ap-living", .accessPoint, "10.0.10.3", 9)
+        let pve = dev("pve-01", .hypervisor, "10.0.10.10", 65, os: "Proxmox VE 8", model: "Mini PC, 64 GB")
+        let nas = dev("truenas", .nas, "10.0.10.20", 48, os: "TrueNAS SCALE", model: "4× 8 TB")
+        let docker = dev("docker-vm", .vm, "10.0.10.30", 0, host: pve, os: "Debian 12")
+        _ = dev("home-assistant", .vm, "10.0.20.40", 0, host: pve, os: "HAOS")
+        let ups = dev("ups", .ups, "", 0, model: "1500 VA")
+        ups.storage = ""
+        let rack = LabRack(name: "Network Rack", units: 12)
+        ctx.insert(rack)
+        for (d, u, h) in [(fw, 11, 1), (sw, 10, 1), (pve, 7, 2), (nas, 3, 3), (ups, 1, 2)] { d.rackID = rack.id; d.rackU = u; d.heightU = h }
+
+        for (name, cidr, vlan, color, purpose) in [("Main LAN", "10.0.10.0/24", 10, "blue", "Servers & trusted devices"),
+                                                    ("IoT", "10.0.20.0/24", 20, "orange", "Smart home, isolated"),
+                                                    ("Guest", "10.0.30.0/24", 30, "green", "Internet only")] {
+            let sn = LabSubnet(name: name, cidr: cidr)
+            sn.vlanID = vlan; sn.colorName = color; sn.purpose = purpose
+            sn.gateway = cidr.replacingOccurrences(of: ".0/24", with: ".1")
+            sn.dhcpStart = cidr.replacingOccurrences(of: ".0/24", with: ".100")
+            sn.dhcpEnd = cidr.replacingOccurrences(of: ".0/24", with: ".199")
+            ctx.insert(sn)
+        }
+        for (a, b, ap1, bp, speed) in [(modem, fw, "LAN", "WAN", "1G"), (fw, sw, "LAN", "1", "2.5G"), (sw, pve, "2", "nic0", "2.5G"),
+                                       (sw, nas, "3", "eth0", "2.5G"), (sw, ap, "4", "PoE", "1G")] {
+            let l = LabLink(from: a.id, to: b.id)
+            l.fromPort = ap1; l.toPort = bp; l.speed = speed
+            ctx.insert(l)
+        }
+        for (name, host, ports, sym, backed) in [("Jellyfin", docker, [8096], "play.rectangle", true), ("Pi-hole", docker, [53, 80], "shield", true),
+                                                 ("Nextcloud", docker, [443], "cloud", false), ("Proxmox UI", pve, [8006], "square.stack.3d.up", true),
+                                                 ("TrueNAS UI", nas, [443], "externaldrive", true)] {
+            let svc = LabService(name: name)
+            svc.hostID = host.id; svc.symbol = sym; svc.backedUp = backed
+            svc.ports = ports.map { ServicePort(port: $0, purpose: CommonPorts.name($0) ?? "") }
+            svc.url = "http://\(host.ip):\(ports[0])"
+            ctx.insert(svc)
+        }
+        let rb = Runbook(title: RunbookStarters.maintenance.0, kind: "maintenance")
+        rb.symbol = RunbookStarters.maintenance.1
+        rb.steps = RunbookStarters.maintenance.2
+        rb.repeatRaw = "monthly"
+        rb.nextDue = Calendar.current.date(byAdding: .day, value: -1, to: .now)
+        ctx.insert(rb)
+        let diagram = LabDiagram(title: "Physical Layout", layer: "physical")
+        let built = DiagramBuilder.build(layer: "physical", devices: [modem, fw, sw, ap, pve, nas, ups], links: (try? ctx.fetch(FetchDescriptor<LabLink>())) ?? [],
+                                         services: [], subnets: [])
+        diagram.nodes = built.0
+        diagram.edges = built.1
+        ctx.insert(diagram)
     }
 }

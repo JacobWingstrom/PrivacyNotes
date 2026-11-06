@@ -1,7 +1,7 @@
 import Foundation
 
 enum AppSection: String, CaseIterable, Identifiable, Codable, Hashable {
-    case home, all, notes, tasks, habits, drawings, vault, files, journals, calendar, contacts, bookmarks
+    case home, all, notes, tasks, habits, drawings, vault, files, homelab, journals, calendar, contacts, bookmarks
 
     var id: String { rawValue }
     var defaultTitle: String { rawValue.capitalized }
@@ -16,6 +16,7 @@ enum AppSection: String, CaseIterable, Identifiable, Codable, Hashable {
         case .drawings: "scribble.variable"
         case .vault: "lock.shield"
         case .files: "folder"
+        case .homelab: "server.rack"
         case .journals: "book.closed"
         case .calendar: "calendar"
         case .contacts: "person.crop.rectangle"

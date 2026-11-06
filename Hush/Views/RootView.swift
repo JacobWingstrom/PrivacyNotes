@@ -184,6 +184,7 @@ struct SectionView: View {
         case .drawings: DrawingsView(title: title)
         case .vault: VaultView(title: title)
         case .files: FilesView(title: title)
+        case .homelab: HomelabView(title: title)
         case .journals: JournalView(title: title)
         case .calendar: CalendarView(title: title)
         case .contacts: ContactsView(title: title)

@@ -62,6 +62,7 @@ struct DrawerView: View {
             return habits.filter { !$0.archived && $0.isScheduled(on: today) && !$0.isDone(on: today) }.count
         case .drawings: return drawings.count
         case .files: return files.count
+        case .homelab: return nil
         case .journals: return journals.count
         case .calendar:
             let start = Calendar.current.startOfDay(for: .now)
