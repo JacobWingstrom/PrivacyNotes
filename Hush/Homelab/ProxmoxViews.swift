@@ -462,7 +462,7 @@ struct ComposeImportSheet: View {
     @State private var redact = true
     @State private var message: String?
 
-    static let dumpCommand = #"for f in $(find /opt /srv /home /root -maxdepth 4 \( -name 'docker-compose.y*ml' -o -name 'compose.y*ml' \) 2>/dev/null); do echo "### $f"; cat "$f"; done"#
+    static let dumpCommand = ####"for f in $(find /opt /srv /home /root -maxdepth 4 \( -name 'docker-compose.y*ml' -o -name 'compose.y*ml' \) 2>/dev/null); do echo "### $f"; cat "$f"; done"####
     static let psCommand = #"docker ps --format '{{.Names}}\t{{.Image}}\t{{.Ports}}'"#
 
     var body: some View {

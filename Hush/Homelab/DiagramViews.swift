@@ -71,46 +71,7 @@ struct DiagramsList: View {
         case "physical": "cable.connector"
         case "network": "network"
         case "services":
-            var nodes: [DiagramNode] = []
-            var edges: [DiagramEdge] = []
-            let roots = devices.filter { d in d.hostID == nil && (devices.contains { $0.hostID == d.id } || services.contains { $0.hostID == d.id }) }
-            var cursor = 0.0
-            var serviceNode: [UUID: UUID] = [:]
-            func place(_ d: LabDevice, depth: Int) -> UUID {
-                let guests = devices.filter { $0.hostID == d.id }.sorted { ($0.vmid, $0.displayName) < ($1.vmid, $1.displayName) }
-                let svc = services.filter { $0.hostID == d.id }
-                var childIDs: [UUID] = []
-                let startX = cursor
-                for g in guests { childIDs.append(place(g, depth: depth + 1)) }
-                for sv in svc {
-                    let label = sv.name + (sv.ports.first.map { " :\($0.port)" } ?? "")
-                    let n = DiagramNode(label: label, symbol: SymbolName.resolve(sv.symbol, fallback: "shippingbox"), x: cursor, y: Double(depth + 1) * spacingY)
-                    nodes.append(n)
-                    serviceNode[sv.id] = n.id
-                    childIDs.append(n.id)
-                    cursor += spacingX * 0.8
-                }
-                let x = childIDs.isEmpty ? cursor : (startX + cursor - spacingX * 0.8) / 2
-                if childIDs.isEmpty { cursor += spacingX * 0.8 }
-                let label = d.kind.isGuest ? "\(d.vmid > 0 ? "\(d.vmid) " : "")\(d.displayName)\n\(d.kind == .lxc ? "LXC" : "VM")\(d.ip.isEmpty ? "" : " · \(d.ip)")" : d.displayName
-                let n = DiagramNode(deviceID: d.id, label: label, symbol: d.kind.symbol, x: x, y: Double(depth) * spacingY,
-                                    colorName: d.kind == .lxc ? "orange" : (d.kind == .vm ? "blue" : "none"))
-                nodes.append(n)
-                for c in childIDs { edges.append(DiagramEdge(from: n.id, to: c, style: "dashed")) }
-                return n.id
-            }
-            for r in roots.sorted(by: { $0.displayName < $1.displayName }) {
-                _ = place(r, depth: 0)
-                cursor += spacingX * 0.5
-            }
-            let shift = cursor / 2
-            nodes = nodes.map { var m = $0; m.x -= shift; return m }
-            for sv in services {
-                for dep in sv.dependsOn {
-                    if let a = serviceNode[sv.id], let b = serviceNode[dep] { edges.append(DiagramEdge(from: a, to: b, label: "needs")) }
-                }
-            }
-            return (nodes, edges)
+            return ServiceTreeLayout(devices: devices, services: services).build()
         default:
             return ([], [])
         }
@@ -177,6 +138,84 @@ struct DiagramsList: View {
             ("pc", "desktopcomputer"), ("desktop", "desktopcomputer"), ("home assistant", "house"), ("pi-hole", "shield"), ("dns", "shield"),
             ("plex", "play.rectangle"), ("jellyfin", "play.rectangle"), ("vpn", "lock.shield"), ("wireguard", "lock.shield"), ("backup", "externaldrive")]
         return table.first { n.contains($0.0) }?.1 ?? "circle.grid.2x2"
+    }
+}
+
+/// Lays out node → guest → container as a tree, top to bottom.
+private final class ServiceTreeLayout {
+    let devices: [LabDevice]
+    let services: [LabService]
+    var nodes: [DiagramNode] = []
+    var edges: [DiagramEdge] = []
+    var serviceNode: [UUID: UUID] = [:]
+    var cursor: Double = 0
+    let dx = DiagramBuilder.spacingX * 0.8
+    let dy = DiagramBuilder.spacingY
+
+    init(devices: [LabDevice], services: [LabService]) {
+        self.devices = devices
+        self.services = services
+    }
+
+    func build() -> ([DiagramNode], [DiagramEdge]) {
+        let roots = devices.filter { d in
+            d.hostID == nil && (devices.contains { $0.hostID == d.id } || services.contains { $0.hostID == d.id })
+        }
+        for r in roots.sorted(by: { $0.displayName < $1.displayName }) {
+            _ = place(r, depth: 0)
+            cursor += dx * 0.6
+        }
+        let shift = cursor / 2
+        nodes = nodes.map { n in
+            var m = n
+            m.x -= shift
+            return m
+        }
+        for sv in services {
+            for dep in sv.dependsOn {
+                if let a = serviceNode[sv.id], let b = serviceNode[dep] {
+                    edges.append(DiagramEdge(from: a, to: b, label: "needs"))
+                }
+            }
+        }
+        return (nodes, edges)
+    }
+
+    private func label(for d: LabDevice) -> String {
+        guard d.kind.isGuest else { return d.displayName }
+        let id = d.vmid > 0 ? "\(d.vmid) " : ""
+        let kind = d.kind == .lxc ? "LXC" : "VM"
+        let ip = d.ip.isEmpty ? "" : " · " + d.ip
+        return id + d.displayName + "\n" + kind + ip
+    }
+
+    private func place(_ d: LabDevice, depth: Int) -> UUID {
+        let guests = devices.filter { $0.hostID == d.id }.sorted { a, b in a.vmid < b.vmid }
+        let svc = services.filter { $0.hostID == d.id }
+        var children: [UUID] = []
+        let startX = cursor
+        for g in guests { children.append(place(g, depth: depth + 1)) }
+        for sv in svc {
+            let portText = sv.ports.first.map { " :" + String($0.port) } ?? ""
+            let n = DiagramNode(label: sv.name + portText, symbol: SymbolName.resolve(sv.symbol, fallback: "shippingbox"),
+                                x: cursor, y: Double(depth + 1) * dy)
+            nodes.append(n)
+            serviceNode[sv.id] = n.id
+            children.append(n.id)
+            cursor += dx
+        }
+        let x: Double
+        if children.isEmpty {
+            x = cursor
+            cursor += dx
+        } else {
+            x = (startX + cursor - dx) / 2
+        }
+        let color: String = d.kind == .lxc ? "orange" : (d.kind == .vm ? "blue" : "none")
+        let n = DiagramNode(deviceID: d.id, label: label(for: d), symbol: d.kind.symbol, x: x, y: Double(depth) * dy, colorName: color)
+        nodes.append(n)
+        for c in children { edges.append(DiagramEdge(from: n.id, to: c, style: "dashed")) }
+        return n.id
     }
 }
 
