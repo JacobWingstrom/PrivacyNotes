@@ -26,16 +26,22 @@ struct DrawerView: View {
 
     private func count(_ s: AppSection) -> Int? {
         switch s {
-        case .home, .vault: nil
-        case .all: notes.count + tasks.filter { !$0.isDone }.count + drawings.count + journals.count + events.count + contacts.count + bookmarks.count
-        case .notes: notes.count
-        case .tasks: tasks.filter { !$0.isDone }.count
-        case .drawings: drawings.count
-        case .files: files.count
-        case .journals: journals.count
-        case .calendar: events.filter { $0.end >= Calendar.current.startOfDay(for: .now) }.count
-        case .contacts: contacts.count
-        case .bookmarks: bookmarks.count
+        case .home, .vault:
+            return nil
+        case .all:
+            let openTasks: Int = tasks.filter { !$0.isDone }.count
+            let counts: [Int] = [notes.count, openTasks, drawings.count, journals.count, events.count, contacts.count, bookmarks.count]
+            return counts.reduce(0, +)
+        case .notes: return notes.count
+        case .tasks: return tasks.filter { !$0.isDone }.count
+        case .drawings: return drawings.count
+        case .files: return files.count
+        case .journals: return journals.count
+        case .calendar:
+            let start = Calendar.current.startOfDay(for: .now)
+            return events.filter { $0.end >= start }.count
+        case .contacts: return contacts.count
+        case .bookmarks: return bookmarks.count
         }
     }
 
