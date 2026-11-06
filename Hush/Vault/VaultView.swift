@@ -16,7 +16,7 @@ struct VaultView: View {
             if lock.vaultUnlocked {
                 VaultContentView()
             } else if hasPasscode {
-                PasscodePrompt(title: "\(title) is locked", symbol: "lock.shield.fill", store: Passcode.vault,
+                PasscodePrompt(title: title, symbol: "lock.shield.fill", store: Passcode.vault,
                                allowBiometrics: settings.vaultUseBiometrics) {
                     lock.vaultUnlocked = true
                 }
@@ -34,11 +34,11 @@ struct VaultView: View {
         .background(palette.background)
         .navigationTitle(title)
         .sheet(isPresented: $settingUp) {
-            PasscodeSetupView(title: "Vault Passcode") { code in
+            PasscodeSetupView(title: "Vault Passcode", onSave: { code in
                 Passcode.vault.set(code)
                 hasPasscode = true
                 lock.vaultUnlocked = true
-            }
+            }, onBiometrics: { settings.vaultUseBiometrics = $0 })
         }
     }
 }

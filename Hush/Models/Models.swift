@@ -68,16 +68,6 @@ enum Priority: Int, CaseIterable, Identifiable {
 enum Mood: Int, CaseIterable, Identifiable {
     case none = 0, awful, low, okay, good, great
     var id: Int { rawValue }
-    var emoji: String {
-        switch self {
-        case .none: ""
-        case .awful: "😞"
-        case .low: "😕"
-        case .okay: "😐"
-        case .good: "🙂"
-        case .great: "😄"
-        }
-    }
     var label: String {
         switch self {
         case .none: "None"
@@ -448,7 +438,7 @@ final class NoteTemplate {
 final class Habit {
     var id: UUID = UUID()
     var name: String = ""
-    var emoji: String = "✅"
+    var emoji: String = "checkmark.circle"
     var colorName: String = "none"
     var target: Int = 1
     /// Weekdays (1 = Sunday … 7 = Saturday). Empty means every day.
@@ -615,4 +605,10 @@ enum Models {
         VaultItem.self, StoredFile.self, Contact.self, Bookmark.self,
         Folder.self, NoteVersion.self, NoteTemplate.self, Habit.self,
     ]
+}
+
+/// Item icons are SF Symbol names. Older emoji values fall back to a default symbol.
+enum SymbolName {
+    static func isValid(_ name: String) -> Bool { !name.isEmpty && UIImage(systemName: name) != nil }
+    static func resolve(_ name: String, fallback: String) -> String { isValid(name) ? name : fallback }
 }

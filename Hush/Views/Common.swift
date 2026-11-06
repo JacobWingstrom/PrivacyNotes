@@ -46,10 +46,10 @@ struct Avatar: View {
     var body: some View {
         ZStack {
             Circle().fill(.tint.opacity(0.18))
-            if emoji.isEmpty {
-                Text(text).font(.system(size: size * 0.4, weight: .semibold)).foregroundStyle(.tint)
+            if SymbolName.isValid(emoji) {
+                Image(systemName: emoji).font(.system(size: size * 0.42, weight: .medium)).foregroundStyle(.tint)
             } else {
-                Text(emoji).font(.system(size: size * 0.5))
+                Text(text).font(.system(size: size * 0.4, weight: .semibold)).foregroundStyle(.tint)
             }
         }
         .frame(width: size, height: size)

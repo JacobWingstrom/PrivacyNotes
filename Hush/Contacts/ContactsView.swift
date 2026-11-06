@@ -93,6 +93,7 @@ struct ContactEditorView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @State private var deleting = false
+    @State private var pickingIcon = false
 
     static let phoneLabels = ["mobile", "home", "work", "other"]
     static let emailLabels = ["personal", "work", "other"]
@@ -112,11 +113,16 @@ struct ContactEditorView: View {
                 TextField("First name", text: $contact.firstName).textContentType(.givenName)
                 TextField("Last name", text: $contact.lastName).textContentType(.familyName)
                 TextField("Company", text: $contact.company).textContentType(.organizationName)
-                HStack {
-                    Text("Icon")
-                    TextField("Emoji (optional)", text: $contact.emoji)
-                        .multilineTextAlignment(.trailing)
-                        .onChange(of: contact.emoji) { _, v in if v.count > 1 { contact.emoji = String(v.suffix(1)) } }
+                Button { pickingIcon = true } label: {
+                    HStack {
+                        Text("Icon").foregroundStyle(.primary)
+                        Spacer()
+                        if SymbolName.isValid(contact.emoji) {
+                            Image(systemName: contact.emoji).foregroundStyle(.tint)
+                        } else {
+                            Text("Initials").foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 Toggle("Favorite", isOn: $contact.isFavorite)
             }
@@ -170,6 +176,7 @@ struct ContactEditorView: View {
             }
         }
         .hushBackground()
+        .sheet(isPresented: $pickingIcon) { SymbolPicker(selection: $contact.emoji) }
         .navigationTitle(isNew ? "New Contact" : "Contact")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: contact.birthdayReminder) { _, on in

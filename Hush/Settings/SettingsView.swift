@@ -382,10 +382,10 @@ struct LockSettings: View {
         }
         .navigationTitle("App Lock")
         .sheet(isPresented: $settingPasscode) {
-            PasscodeSetupView { code in
+            PasscodeSetupView(onSave: { code in
                 Passcode.app.set(code)
                 settings.lockEnabled = true
-            }
+            }, onBiometrics: { settings.useBiometrics = $0 })
         }
     }
 }
@@ -409,7 +409,8 @@ struct VaultSettings: View {
         }
         .navigationTitle("Vault")
         .sheet(isPresented: $settingPasscode) {
-            PasscodeSetupView(title: "Vault Passcode") { Passcode.vault.set($0) }
+            PasscodeSetupView(title: "Vault Passcode", onSave: { Passcode.vault.set($0) },
+                              onBiometrics: { settings.vaultUseBiometrics = $0 })
         }
     }
 }

@@ -28,7 +28,7 @@ enum TemplateLibrary {
 
     static let all: [BuiltInTemplate] = [
         // MARK: Notes
-        .init(category: "Notes", name: "Meeting Notes", emoji: "🗓️", title: "Meeting – {{date}}", body: """
+        .init(category: "Notes", name: "Meeting Notes", emoji: "calendar", title: "Meeting – {{date}}", body: """
         **When:** {{date}}, {{time}}
         **Who:**
 
@@ -44,7 +44,7 @@ enum TemplateLibrary {
         ## Action items
         - [ ] Owner — task — due
         """),
-        .init(category: "Notes", name: "Quick Capture", emoji: "⚡️", title: "", body: """
+        .init(category: "Notes", name: "Quick Capture", emoji: "bolt", title: "", body: """
         ## Idea
 
 
@@ -54,7 +54,7 @@ enum TemplateLibrary {
         ## Next step
         - [ ]
         """),
-        .init(category: "Notes", name: "Reading Notes", emoji: "📚", title: "Reading: ", body: """
+        .init(category: "Notes", name: "Reading Notes", emoji: "books.vertical", title: "Reading: ", body: """
         **Author:**
         **Started:** {{date}}
         **Rating:** /5
@@ -71,7 +71,7 @@ enum TemplateLibrary {
         ## How I'll use this
         -
         """),
-        .init(category: "Notes", name: "Research Topic", emoji: "🔎", title: "Research: ", body: """
+        .init(category: "Notes", name: "Research Topic", emoji: "magnifyingglass", title: "Research: ", body: """
         ## Question
         What exactly am I trying to find out?
 
@@ -87,7 +87,7 @@ enum TemplateLibrary {
         ## Open questions
         - [ ]
         """),
-        .init(category: "Notes", name: "Lecture / Class", emoji: "🎓", title: "Class – {{date}}", body: """
+        .init(category: "Notes", name: "Lecture / Class", emoji: "graduationcap", title: "Class – {{date}}", body: """
         **Course:**
         **Topic:**
 
@@ -105,7 +105,7 @@ enum TemplateLibrary {
         """),
 
         // MARK: Homelab
-        .init(category: "Homelab", name: "Server Inventory", emoji: "🖥️", title: "Server: ", body: """
+        .init(category: "Homelab", name: "Server Inventory", emoji: "server.rack", title: "Server: ", body: """
         ## Hardware
         - **Model:**
         - **CPU:**
@@ -132,7 +132,7 @@ enum TemplateLibrary {
         - Purchased:
         - Warranty until:
         """),
-        .init(category: "Homelab", name: "Service / Container", emoji: "📦", title: "Service: ", body: """
+        .init(category: "Homelab", name: "Service / Container", emoji: "shippingbox", title: "Service: ", body: """
         **Runs on:**
         **URL:** http://
         **Image / version:**
@@ -163,7 +163,7 @@ enum TemplateLibrary {
         3. Pull new image and restart
         4. Check logs and the web UI
         """),
-        .init(category: "Homelab", name: "Network / IP Plan", emoji: "🌐", title: "Network Plan", body: """
+        .init(category: "Homelab", name: "Network / IP Plan", emoji: "network", title: "Network Plan", body: """
         ## Subnets & VLANs
         | VLAN | Name | Subnet | Gateway | Purpose |
         |---|---|---|---|---|
@@ -184,7 +184,7 @@ enum TemplateLibrary {
         ## Firewall rules worth remembering
         -
         """),
-        .init(category: "Homelab", name: "Change Log", emoji: "📝", title: "Change – {{date}}", body: """
+        .init(category: "Homelab", name: "Change Log", emoji: "list.bullet.clipboard", title: "Change – {{date}}", body: """
         **System:**
         **Date:** {{date}} {{time}}
         **Risk:** Low / Medium / High
@@ -203,7 +203,7 @@ enum TemplateLibrary {
         - [ ] Logs clean
         - [ ] Backups still running
         """),
-        .init(category: "Homelab", name: "Incident Write-up", emoji: "🚨", title: "Incident – {{date}}", body: """
+        .init(category: "Homelab", name: "Incident Write-up", emoji: "exclamationmark.triangle", title: "Incident – {{date}}", body: """
         **Started:**
         **Resolved:**
         **Impact:**
@@ -222,7 +222,7 @@ enum TemplateLibrary {
         - [ ] Add monitoring / alert
         - [ ] Update documentation
         """),
-        .init(category: "Homelab", name: "Backup Plan", emoji: "💾", title: "Backup Plan", body: """
+        .init(category: "Homelab", name: "Backup Plan", emoji: "externaldrive", title: "Backup Plan", body: """
         ## What gets backed up
         | Data | Source | Destination | Schedule | Retention |
         |---|---|---|---|---|
@@ -236,7 +236,7 @@ enum TemplateLibrary {
         ## Restore test log
         - {{date}} — restored ___ successfully
         """),
-        .init(category: "Homelab", name: "Maintenance Checklist", emoji: "🧰", title: "Maintenance – {{date}}", body: """
+        .init(category: "Homelab", name: "Maintenance Checklist", emoji: "wrench.and.screwdriver", title: "Maintenance – {{date}}", body: """
         ## Monthly
         - [ ] Apply OS and package updates
         - [ ] Update containers / apps
@@ -250,7 +250,7 @@ enum TemplateLibrary {
         ## Notes
         -
         """),
-        .init(category: "Homelab", name: "Hardware Build Log", emoji: "🔧", title: "Build: ", body: """
+        .init(category: "Homelab", name: "Hardware Build Log", emoji: "cpu", title: "Build: ", body: """
         ## Goal
 
 
@@ -271,7 +271,7 @@ enum TemplateLibrary {
         """),
 
         // MARK: Work
-        .init(category: "Work", name: "Daily Standup", emoji: "☀️", title: "Standup – {{weekday}}", body: """
+        .init(category: "Work", name: "Daily Standup", emoji: "sun.max", title: "Standup – {{weekday}}", body: """
         ## Yesterday
         -
 
@@ -281,7 +281,7 @@ enum TemplateLibrary {
         ## Blockers
         -
         """),
-        .init(category: "Work", name: "1:1 Meeting", emoji: "🤝", title: "1:1 – {{date}}", body: """
+        .init(category: "Work", name: "1:1 Meeting", emoji: "person.2", title: "1:1 – {{date}}", body: """
         **With:**
 
         ## Their topics
@@ -296,7 +296,7 @@ enum TemplateLibrary {
         ## Follow-ups
         - [ ]
         """),
-        .init(category: "Work", name: "Project Brief", emoji: "🎯", title: "Project: ", body: """
+        .init(category: "Work", name: "Project Brief", emoji: "target", title: "Project: ", body: """
         ## Problem
 
 
@@ -319,7 +319,7 @@ enum TemplateLibrary {
         - Owner:
         - Stakeholders:
         """),
-        .init(category: "Work", name: "Bug Report", emoji: "🐞", title: "Bug: ", body: """
+        .init(category: "Work", name: "Bug Report", emoji: "ladybug", title: "Bug: ", body: """
         **Severity:** Low / Medium / High
         **Found:** {{date}}
 
@@ -339,7 +339,7 @@ enum TemplateLibrary {
         ## Notes
         -
         """),
-        .init(category: "Work", name: "Decision Record", emoji: "⚖️", title: "Decision: ", body: """
+        .init(category: "Work", name: "Decision Record", emoji: "scale.3d", title: "Decision: ", body: """
         **Date:** {{date}}
         **Status:** Proposed / Accepted / Replaced
 
@@ -358,7 +358,7 @@ enum TemplateLibrary {
         """),
 
         // MARK: Personal
-        .init(category: "Personal", name: "Daily Journal", emoji: "📔", title: "{{weekday}}, {{date}}", body: """
+        .init(category: "Personal", name: "Daily Journal", emoji: "book.closed", title: "{{weekday}}, {{date}}", body: """
         ## Three good things
         1.
         2.
@@ -370,7 +370,7 @@ enum TemplateLibrary {
         ## Tomorrow I want to
         - [ ]
         """),
-        .init(category: "Personal", name: "Workout Log", emoji: "🏋️", title: "Workout – {{date}}", body: """
+        .init(category: "Personal", name: "Workout Log", emoji: "dumbbell", title: "Workout – {{date}}", body: """
         **Type:**
         **Duration:**
         **Energy:** /10
@@ -382,7 +382,7 @@ enum TemplateLibrary {
         ## Notes
         -
         """),
-        .init(category: "Personal", name: "Recipe", emoji: "🍲", title: "Recipe: ", body: """
+        .init(category: "Personal", name: "Recipe", emoji: "fork.knife", title: "Recipe: ", body: """
         **Serves:**
         **Prep:**  **Cook:**
 
@@ -395,7 +395,7 @@ enum TemplateLibrary {
         ## Notes & tweaks
         -
         """),
-        .init(category: "Personal", name: "Packing List", emoji: "🧳", title: "Packing: ", body: """
+        .init(category: "Personal", name: "Packing List", emoji: "suitcase", title: "Packing: ", body: """
         ## Essentials
         - [ ] ID / passport
         - [ ] Wallet and cards
@@ -414,7 +414,7 @@ enum TemplateLibrary {
         - [ ] Headphones
         - [ ] Power bank
         """),
-        .init(category: "Personal", name: "Shopping List", emoji: "🛒", title: "Shopping", body: """
+        .init(category: "Personal", name: "Shopping List", emoji: "cart", title: "Shopping", body: """
         ## Produce
         - [ ]
 
@@ -427,14 +427,14 @@ enum TemplateLibrary {
         ## Household
         - [ ]
         """),
-        .init(category: "Personal", name: "Gift Ideas", emoji: "🎁", title: "Gift Ideas", body: """
+        .init(category: "Personal", name: "Gift Ideas", emoji: "gift", title: "Gift Ideas", body: """
         | Person | Occasion | Idea | Budget | Bought |
         |---|---|---|---|---|
         |  |  |  |  | - [ ] |
         """),
 
         // MARK: Planning
-        .init(category: "Planning", name: "Weekly Plan", emoji: "🗂️", title: "Week {{week}}", body: """
+        .init(category: "Planning", name: "Weekly Plan", emoji: "square.grid.2x2", title: "Week {{week}}", body: """
         ## Top three this week
         1. [ ]
         2. [ ]
@@ -453,7 +453,7 @@ enum TemplateLibrary {
         ## Weekend
         - [ ]
         """),
-        .init(category: "Planning", name: "Weekly Review", emoji: "🔁", title: "Review – Week {{week}}", body: """
+        .init(category: "Planning", name: "Weekly Review", emoji: "arrow.triangle.2.circlepath", title: "Review – Week {{week}}", body: """
         ## What went well
         -
 
@@ -466,7 +466,7 @@ enum TemplateLibrary {
         ## Next week's focus
         - [ ]
         """),
-        .init(category: "Planning", name: "Goal Tracker", emoji: "🏁", title: "Goal: ", body: """
+        .init(category: "Planning", name: "Goal Tracker", emoji: "flag.checkered", title: "Goal: ", body: """
         **Target date:**
         **Why it matters:**
 
@@ -481,7 +481,7 @@ enum TemplateLibrary {
         ## Progress log
         - {{date}} —
         """),
-        .init(category: "Planning", name: "Trip Plan", emoji: "✈️", title: "Trip: ", body: """
+        .init(category: "Planning", name: "Trip Plan", emoji: "airplane", title: "Trip: ", body: """
         **Dates:**
         **Where:**
 
@@ -566,7 +566,7 @@ struct TemplatePicker: View {
 
     private func row(_ emoji: String, _ name: String, _ sub: String) -> some View {
         HStack(spacing: 12) {
-            Text(emoji.isEmpty ? "📄" : emoji).font(.hush(.title3)).frame(width: 32)
+            SymbolTile(name: emoji, fallback: "doc.text", size: 34)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name).foregroundStyle(.primary)
                 Text(sub.replacingOccurrences(of: "\n", with: " ").trimmed).font(.hush(.caption)).foregroundStyle(.secondary).lineLimit(1)
@@ -592,7 +592,7 @@ struct TemplatesSettings: View {
                     Text("Save any note as a template from its ⋯ menu.").foregroundStyle(.secondary)
                 }
                 ForEach(mine) { t in
-                    Label { Text(t.name) } icon: { Text(t.emoji.isEmpty ? "📄" : t.emoji) }
+                    Label { Text(t.name) } icon: { SymbolIcon(name: t.emoji) }
                 }
                 .onDelete { $0.map { mine[$0] }.forEach(context.delete) }
             } header: {

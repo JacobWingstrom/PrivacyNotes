@@ -120,7 +120,7 @@ struct FolderRow: View {
                 .font(.hush(.title3))
                 .foregroundStyle(.tint)
                 .frame(width: 30)
-            Text(folder.emoji.isEmpty ? folder.name : "\(folder.emoji) \(folder.name)").font(.hush(.headline))
+            Text(folder.name).font(.hush(.headline))
             Spacer()
             Text("\(count)").font(.hush(.subheadline)).foregroundStyle(.secondary).monospacedDigit()
         }

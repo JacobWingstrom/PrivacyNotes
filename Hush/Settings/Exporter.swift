@@ -76,7 +76,7 @@ enum Exporter {
 
     static func journal(_ entries: [JournalEntry]) -> URL? {
         let text = entries.sorted { $0.date < $1.date }.map { e in
-            "## \(e.date.formatted(date: .complete, time: .shortened))\(e.mood == .none ? "" : " \(e.mood.emoji)")\n\n"
+            "## \(e.date.formatted(date: .complete, time: .shortened))\(e.mood == .none ? "" : " (mood: \(e.mood.label))")\n\n"
                 + (e.title.isEmpty ? "" : "**\(e.title)**\n\n") + e.body
         }.joined(separator: "\n\n---\n\n")
         return write(Data(("# Journal\n\n" + text).utf8), name: "Journal.md")

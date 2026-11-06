@@ -14,10 +14,10 @@ enum DemoData {
         }
 
         let notes: [(String, String, [String], Bool, String)] = [
-            ("Trip ideas", "Coast drive in spring\n☐ Book cabin\n☐ Check tide tables", ["travel"], true, "🧭"),
+            ("Trip ideas", "Coast drive in spring\n☐ Book cabin\n☐ Check tide tables", ["travel"], true, "map"),
             ("Book list", "• The quiet hours\n• Field notes on rivers", ["reading"], true, ""),
             ("Meeting notes", "Agreed on the new schedule. Follow up Friday.", ["work"], false, ""),
-            ("Recipe: lentil soup", "Onion, carrot, lentils, cumin, lemon.", ["cooking"], false, "🥣"),
+            ("Recipe: lentil soup", "Onion, carrot, lentils, cumin, lemon.", ["cooking"], false, "fork.knife"),
         ]
         for (i, n) in notes.enumerated() {
             let note = Note()
@@ -32,7 +32,7 @@ enum DemoData {
         ctx.insert(servers)
         let md = Note()
         md.title = "Homelab notes"
-        md.emoji = "🖥️"
+        md.emoji = "server.rack"
         md.folderID = lab.id
         md.tags = ["homelab"]
         md.body = """
@@ -50,7 +50,7 @@ enum DemoData {
         md.updatedAt = day(0, 11)
         ctx.insert(md)
 
-        for (i, h) in [("Drink water", "💧", 8), ("Read", "📖", 1), ("Stretch", "🧘", 1), ("Vitamins", "💊", 1)].enumerated() {
+        for (i, h) in [("Drink water", "drop", 8), ("Read", "book", 1), ("Stretch", "figure.yoga", 1), ("Vitamins", "pills", 1)].enumerated() {
             let habit = Habit(name: h.0)
             habit.emoji = h.1
             habit.target = h.2

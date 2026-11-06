@@ -12,8 +12,7 @@ struct NoteEditorView: View {
     @State private var original: (String, String)?
     @State private var editingTags = false
     @State private var tagText = ""
-    @State private var editingEmoji = false
-    @State private var emojiText = ""
+    @State private var pickingIcon = false
     @State private var pendingInsert: String?
     @State private var zen = false
     @State private var showInfo = false
@@ -120,12 +119,7 @@ struct NoteEditorView: View {
             Button("Save") { note.tags = .tags(from: tagText) }
             Button("Cancel", role: .cancel) {}
         } message: { Text("Separate tags with commas.") }
-        .alert("Note Icon", isPresented: $editingEmoji) {
-            TextField("Type an emoji", text: $emojiText)
-            Button("Save") { note.emoji = String(emojiText.trimmed.prefix(1)) }
-            Button("Remove", role: .destructive) { note.emoji = "" }
-            Button("Cancel", role: .cancel) {}
-        }
+        .sheet(isPresented: $pickingIcon) { SymbolPicker(selection: $note.emoji) }
         .alert("Save as Template", isPresented: $savingTemplate) {
             TextField("Template name", text: $templateName)
             Button("Save") {
@@ -148,7 +142,7 @@ struct NoteEditorView: View {
                     ForEach(NoteColor.allCases) { Text($0.label).tag($0.rawValue) }
                 } label: { Label("Color", systemImage: "paintpalette") }
                 .pickerStyle(.menu)
-                Button { emojiText = note.emoji; editingEmoji = true } label: { Label("Icon", systemImage: "face.smiling") }
+                Button { pickingIcon = true } label: { Label("Icon", systemImage: "star.square") }
             }
             Section {
                 Button { choosingAttachment = true } label: { Label("Attach…", systemImage: "paperclip") }

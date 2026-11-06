@@ -7,9 +7,14 @@ struct PasscodeStore {
 
     var isSet: Bool { Keychain.load(key) != nil }
 
+    /// Number of digits, so the keypad can unlock as soon as the last one is typed (like iPhone).
+    var length: Int { UserDefaults.standard.integer(forKey: key + ".length") }
+    func rememberLength(_ n: Int) { UserDefaults.standard.set(n, forKey: key + ".length") }
+
     func set(_ code: String) {
         let salt = Passcode.randomBytes(16)
         Keychain.save(salt + Passcode.pbkdf2(code, salt: salt), for: key)
+        rememberLength(code.count)
     }
 
     func verify(_ code: String) -> Bool {
@@ -22,7 +27,10 @@ struct PasscodeStore {
         return diff == 0
     }
 
-    func clear() { Keychain.delete(key) }
+    func clear() {
+        Keychain.delete(key)
+        UserDefaults.standard.removeObject(forKey: key + ".length")
+    }
 }
 
 enum Passcode {

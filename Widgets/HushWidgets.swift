@@ -60,8 +60,8 @@ enum WidgetData {
 
     static var sample: HushEntry {
         HushEntry(date: .now, hidden: false, tasks: [("Call the dentist", false), ("Water plants", false)], taskCount: 2,
-                  habits: [HabitSnap(id: "1", name: "Water", emoji: "💧", count: 3, target: 8, streak: 4),
-                           HabitSnap(id: "2", name: "Read", emoji: "📖", count: 1, target: 1, streak: 12)],
+                  habits: [HabitSnap(id: "1", name: "Water", emoji: "drop", count: 3, target: 8, streak: 4),
+                           HabitSnap(id: "2", name: "Read", emoji: "book", count: 1, target: 1, streak: 12)],
                   accent: .blue)
     }
 }
@@ -170,7 +170,7 @@ struct HabitsWidgetView: View {
                 ForEach(entry.habits.prefix(limit)) { h in
                     Button(intent: ToggleHabitIntent(habitID: h.id)) {
                         HStack(spacing: 8) {
-                            Text(h.emoji)
+                            Image(systemName: SymbolName.resolve(h.emoji, fallback: "checkmark.circle")).foregroundStyle(entry.accent).frame(width: 18)
                             Text(h.name).font(.caption).lineLimit(1)
                             Spacer(minLength: 2)
                             if h.target > 1 && !h.done {

@@ -76,7 +76,7 @@ enum Reminders {
         var comps = Calendar.current.dateComponents([.month, .day], from: bday)
         comps.hour = defaultMinutes / 60
         comps.minute = defaultMinutes % 60
-        scheduleRepeating(id: id, title: "🎂 \(contact.displayName)", body: "Birthday today", components: comps)
+        scheduleRepeating(id: id, title: "Birthday: \(contact.displayName)", body: "Say happy birthday today.", components: comps)
     }
 
     static func sync(_ habit: Habit) {
@@ -84,7 +84,7 @@ enum Reminders {
         let ids = ["\(base).daily"] + (1...7).map { "\(base).\($0)" }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
         guard habit.remind, !habit.archived, habit.deletedAt == nil else { return }
-        let title = "\(habit.emoji) \(habit.name)".trimmed
+        let title = habit.name.trimmed.isEmpty ? "Habit" : habit.name.trimmed
         let body = habit.target > 1 ? "Time for your habit (\(habit.target)× today)" : "Time for your habit"
         var comps = DateComponents()
         comps.hour = habit.reminderMinutes / 60

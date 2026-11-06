@@ -9,7 +9,8 @@ final class LockManager {
     @ObservationIgnored private var authenticating = false
 
     init() {
-        isLocked = UserDefaults.standard.bool(forKey: AppSettings.lockEnabledKey) && Passcode.app.isSet
+        isLocked = (UserDefaults.standard.bool(forKey: AppSettings.lockEnabledKey) && Passcode.app.isSet)
+            || UserDefaults.standard.bool(forKey: "demoLock")
     }
 
     func didEnterBackground() {

@@ -210,8 +210,8 @@ struct NoteRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            if !note.emoji.isEmpty {
-                Text(note.emoji).font(.hush(.title3))
+            if SymbolName.isValid(note.emoji) {
+                Image(systemName: note.emoji).font(.system(size: 18)).foregroundStyle(note.color ?? Color.accentColor).frame(width: 24)
             } else if let c = note.color {
                 Circle().fill(c).frame(width: 10, height: 10).padding(.top, 6)
             }

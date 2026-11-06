@@ -61,6 +61,7 @@ final class AppSettings {
     var homeBlocks: [HomeBlock] { didSet { store.set(Self.encode(homeBlocks), forKey: K.homeOrder) } }
     var hiddenHomeBlocks: Set<HomeBlock> { didSet { store.set(Self.encode(hiddenHomeBlocks), forKey: K.homeHidden) } }
     var showGreeting: Bool { didSet { store.set(showGreeting, forKey: K.greeting) } }
+    var homeWidgets: [HomeWidget] { didSet { store.set(Self.encode(homeWidgets), forKey: "homeWidgets") } }
 
     // Security
     var lockEnabled: Bool { didSet { store.set(lockEnabled, forKey: K.lock); syncWidgetPrivacy() } }
@@ -110,6 +111,15 @@ final class AppSettings {
         homeBlocks = blocks
         hiddenHomeBlocks = Self.decode(d.data(forKey: K.homeHidden)) ?? []
         showGreeting = d.object(forKey: K.greeting) as? Bool ?? true
+        if let saved: [HomeWidget] = Self.decode(d.data(forKey: "homeWidgets")) {
+            homeWidgets = saved
+        } else if d.data(forKey: K.homeOrder) != nil {
+            let oldBlocks: [HomeBlock] = Self.decode(d.data(forKey: K.homeOrder)) ?? HomeBlock.allCases
+            let oldHidden: Set<HomeBlock> = Self.decode(d.data(forKey: K.homeHidden)) ?? []
+            homeWidgets = HomeLayouts.migrate(blocks: oldBlocks, hidden: oldHidden, greeting: d.object(forKey: K.greeting) as? Bool ?? true)
+        } else {
+            homeWidgets = HomeLayouts.standard
+        }
 
         lockEnabled = d.bool(forKey: K.lock)
         useBiometrics = d.object(forKey: K.bio) as? Bool ?? true

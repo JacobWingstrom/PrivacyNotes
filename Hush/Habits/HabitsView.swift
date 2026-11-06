@@ -98,10 +98,7 @@ struct HabitRow: View {
         let today = Date()
         let tint = habit.color ?? Color.accentColor
         HStack(spacing: 12) {
-            Text(habit.emoji.isEmpty ? "✅" : habit.emoji)
-                .font(.hush(.title2))
-                .frame(width: 44, height: 44)
-                .background(tint.opacity(0.18), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            SymbolTile(name: habit.emoji, fallback: "checkmark.circle", tint: tint, size: 44)
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 8) {
                     Text(habit.name.isEmpty ? "New Habit" : habit.name).font(.hush(.headline)).lineLimit(1)
@@ -193,7 +190,7 @@ struct HabitDetailView: View {
         ScrollView {
             VStack(spacing: 14) {
                 HStack(spacing: 14) {
-                    Text(habit.emoji).font(.system(size: 44))
+                    SymbolTile(name: habit.emoji, fallback: "checkmark.circle", tint: tint, size: 56)
                     VStack(alignment: .leading) {
                         Text(habit.name).font(.hush(.title2).bold())
                         Text(scheduleText).font(.hush(.subheadline)).foregroundStyle(.secondary)
@@ -299,7 +296,10 @@ struct HabitEditor: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
 
-    static let emojis = ["✅", "💧", "📖", "🏃", "🧘", "💊", "🥗", "😴", "🦷", "🚶", "🏋️", "🎸", "✍️", "🧹", "📵", "🌱", "☕️", "💰", "🙏", "🧠"]
+    static let symbols = ["checkmark.circle", "drop", "book", "figure.run", "figure.yoga", "pills", "fork.knife", "bed.double",
+                          "mouth", "figure.walk", "dumbbell", "music.note", "pencil", "sparkles", "iphone.slash", "leaf",
+                          "cup.and.saucer", "banknote", "heart", "brain.head.profile"]
+    @State private var pickingIcon = false
 
     var body: some View {
         HushForm {
@@ -307,12 +307,19 @@ struct HabitEditor: View {
                 TextField("Habit name (e.g. Drink water)", text: $habit.name).font(.hush(.headline))
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(Self.emojis, id: \.self) { e in
-                            Text(e).font(.hush(.title2))
+                        ForEach(Self.symbols.filter(SymbolName.isValid), id: \.self) { e in
+                            Image(systemName: e).font(.system(size: 20))
                                 .frame(width: 42, height: 42)
-                                .background(habit.emoji == e ? AnyShapeStyle(.tint.opacity(0.25)) : AnyShapeStyle(.clear), in: RoundedRectangle(cornerRadius: 10))
+                                .foregroundStyle(habit.emoji == e ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
+                                .background(habit.emoji == e ? AnyShapeStyle(.tint) : AnyShapeStyle(.quaternary), in: RoundedRectangle(cornerRadius: 10))
                                 .onTapGesture { habit.emoji = e }
                         }
+                        Button { pickingIcon = true } label: {
+                            Image(systemName: "ellipsis").frame(width: 42, height: 42)
+                                .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("More icons")
                     }
                 }
                 Picker("Color", selection: $habit.colorName) {
@@ -358,6 +365,7 @@ struct HabitEditor: View {
                 }
             }
         }
+        .sheet(isPresented: $pickingIcon) { SymbolPicker(selection: $habit.emoji, allowNone: false) }
         .navigationTitle(habit.name.isEmpty ? "New Habit" : "Edit Habit")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }

@@ -35,7 +35,7 @@ struct BookmarksView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         TagChip(text: "All", selected: tagFilter == nil && !favoritesOnly) { tagFilter = nil; favoritesOnly = false }
-                        TagChip(text: "★ Favorites", selected: favoritesOnly) { favoritesOnly.toggle() }
+                        TagChip(text: "Favorites", selected: favoritesOnly) { favoritesOnly.toggle() }
                         ForEach(allTags, id: \.self) { tag in
                             TagChip(text: "#\(tag)", selected: tagFilter == tag) { tagFilter = tagFilter == tag ? nil : tag }
                         }

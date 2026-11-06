@@ -32,7 +32,7 @@ struct JournalView: View {
                         Divider()
                         stat("\(entries.count)", "Entries", "book.closed.fill")
                         Divider()
-                        stat(JournalStats.averageMood(entries), "Avg. mood", "face.smiling")
+                        stat("", "Avg. mood", JournalStats.averageMood(entries)?.symbol ?? "circle.dashed")
                     }
                     .padding(.vertical, 12)
                     .background(Color.clear)
@@ -87,11 +87,11 @@ enum JournalStats {
         return count
     }
 
-    static func averageMood(_ entries: [JournalEntry]) -> String {
+    static func averageMood(_ entries: [JournalEntry]) -> Mood? {
         let moods = entries.prefix(30).map(\.moodRaw).filter { $0 > 0 }
-        guard !moods.isEmpty else { return "–" }
+        guard !moods.isEmpty else { return nil }
         let avg = Int((Double(moods.reduce(0, +)) / Double(moods.count)).rounded())
-        return Mood(rawValue: avg)?.emoji ?? "–"
+        return Mood(rawValue: avg)
     }
 }
 
@@ -110,7 +110,7 @@ struct JournalRow: View {
                     Text(entry.title.isEmpty ? (entry.body.split(separator: "\n").first.map(String.init) ?? "Untitled") : entry.title)
                         .font(.hush(.headline)).lineLimit(1)
                     Spacer()
-                    Text(entry.mood.emoji)
+                    if entry.mood != .none { Image(systemName: entry.mood.symbol).foregroundStyle(.tint) }
                 }
                 if !compact && !entry.body.isEmpty && !entry.title.isEmpty {
                     Text(entry.body).font(.hush(.subheadline)).foregroundStyle(.secondary).lineLimit(2)
@@ -142,9 +142,10 @@ struct JournalEditorView: View {
                     Button {
                         entry.mood = entry.mood == mood ? .none : mood
                     } label: {
-                        Text(mood.emoji)
-                            .font(.hush(.title2))
-                            .padding(6)
+                        Image(systemName: mood.symbol)
+                            .font(.system(size: 22))
+                            .foregroundStyle(entry.mood == mood ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                            .frame(width: 44, height: 40)
                             .background(entry.mood == mood ? AnyShapeStyle(.tint.opacity(0.25)) : AnyShapeStyle(.clear), in: Circle())
                             .opacity(entry.mood == .none || entry.mood == mood ? 1 : 0.45)
                     }

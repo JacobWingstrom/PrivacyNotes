@@ -159,10 +159,10 @@ struct BottomBar: View {
         .background(palette.background)
         .overlay(alignment: .top) { Rectangle().fill(palette.border).frame(height: 1) }
         .sheet(isPresented: $settingPasscode) {
-            PasscodeSetupView { code in
+            PasscodeSetupView(onSave: { code in
                 Passcode.app.set(code)
                 settings.lockEnabled = true
-            }
+            }, onBiometrics: { settings.useBiometrics = $0 })
         }
     }
 
