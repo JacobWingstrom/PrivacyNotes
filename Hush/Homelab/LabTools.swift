@@ -324,6 +324,7 @@ enum LabDocs {
         let subnets = ((try? ctx.fetch(FetchDescriptor<LabSubnet>())) ?? []).live(space)
         let links = ((try? ctx.fetch(FetchDescriptor<LabLink>())) ?? []).live(space)
         let racks = ((try? ctx.fetch(FetchDescriptor<LabRack>())) ?? []).live(space)
+        let stacks = ((try? ctx.fetch(FetchDescriptor<ComposeStack>())) ?? []).live(space)
         func name(_ id: UUID?) -> String { devices.first { $0.id == id }?.displayName ?? "—" }
         func cell(_ s: String) -> String { s.isEmpty ? " " : s.replacingOccurrences(of: "|", with: "/") }
 
@@ -331,6 +332,28 @@ enum LabDocs {
         md += "## Devices\n| Name | Type | IP | MAC | OS | Model | Host | Power |\n|---|---|---|---|---|---|---|---|\n"
         for d in devices.sorted(by: { ($0.kind.tier, $0.displayName) < ($1.kind.tier, $1.displayName) }) {
             md += "| \(cell(d.displayName)) | \(d.kind.label) | \(cell(d.ip)) | \(cell(d.mac)) | \(cell(d.os)) | \(cell(d.model)) | \(d.hostID == nil ? " " : name(d.hostID)) | \(d.powerWatts > 0 ? "\(Int(d.powerWatts)) W" : " ") |\n"
+        }
+        let pveNodes = devices.filter { $0.kind == .hypervisor }
+        if !pveNodes.isEmpty {
+            md += "\n## Proxmox\n"
+            for node in pveNodes.sorted(by: { $0.displayName < $1.displayName }) {
+                let guests = devices.filter { $0.hostID == node.id && $0.kind.isGuest }.sorted { $0.vmid < $1.vmid }
+                md += "\n### \(node.displayName)\(node.clusterName.isEmpty ? "" : " (cluster: \(node.clusterName))")\n"
+                md += "| VMID | Type | Name | IP | vCPU | RAM | Disk | Bridge/VLAN | Boot | Stacks |\n|---|---|---|---|---|---|---|---|---|---|\n"
+                for g in guests {
+                    let st = stacks.filter { $0.hostID == g.id }.map(\.name).joined(separator: ", ")
+                    md += "| \(g.vmid) | \(g.kind == .lxc ? "LXC" : "VM") | \(cell(g.displayName)) | \(cell(g.ip)) | \(g.cores) | \(g.memoryMB) MB | \(g.diskGB.formatted()) GB | \(cell([g.bridge, g.vlanTag.isEmpty ? "" : "tag \(g.vlanTag)"].filter { !$0.isEmpty }.joined(separator: " "))) | \(g.onBoot ? "yes" : "no") | \(cell(st)) |\n"
+                }
+            }
+        }
+        if !stacks.isEmpty {
+            md += "\n## Compose Stacks\n"
+            for st in stacks.sorted(by: { $0.name < $1.name }) {
+                md += "\n### \(st.name) — \(name(st.hostID))\(st.path.isEmpty ? "" : " — `\(st.path)`")\n"
+                for sv in services.filter({ $0.stackID == st.id }) {
+                    md += "- **\(sv.name)** `\(sv.image)`\(sv.ports.isEmpty ? "" : " · ports \(sv.portSummary)")\(sv.volumes.isEmpty ? "" : " · volumes \(sv.volumes.joined(separator: ", "))")\n"
+                }
+            }
         }
         md += "\n## Services\n| Service | Host | Ports | URL | Image | Backed up |\n|---|---|---|---|---|---|\n"
         for s in services.sorted(by: { $0.name < $1.name }) {

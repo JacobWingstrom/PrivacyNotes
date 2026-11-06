@@ -3,6 +3,7 @@ import SwiftData
 
 /// Sample content used only when Hush is launched with `-demoSeed YES`
 /// (the automated screenshot run). Never runs in normal use.
+@MainActor
 enum DemoData {
     static func seedIfRequested(_ ctx: ModelContext) {
         guard UserDefaults.standard.bool(forKey: "demoSeed"),
@@ -107,8 +108,46 @@ enum DemoData {
         let ap = dev("ap-living", .accessPoint, "10.0.10.3", 9)
         let pve = dev("pve-01", .hypervisor, "10.0.10.10", 65, os: "Proxmox VE 8", model: "Mini PC, 64 GB")
         let nas = dev("truenas", .nas, "10.0.10.20", 48, os: "TrueNAS SCALE", model: "4× 8 TB")
+        pve.cores = 16; pve.memoryMB = 65536; pve.clusterName = "homelab"; pve.storagePool = "local-zfs"
+        let pve2 = dev("pve-02", .hypervisor, "10.0.10.11", 35, os: "Proxmox VE 8", model: "Mini PC, 32 GB")
+        pve2.cores = 8; pve2.memoryMB = 32768; pve2.clusterName = "homelab"
         let docker = dev("docker-vm", .vm, "10.0.10.30", 0, host: pve, os: "Debian 12")
-        _ = dev("home-assistant", .vm, "10.0.20.40", 0, host: pve, os: "HAOS")
+        docker.vmid = 101; docker.cores = 4; docker.memoryMB = 8192; docker.diskGB = 64; docker.bridge = "vmbr0"; docker.onBoot = true
+        let ha = dev("home-assistant", .vm, "10.0.20.40", 0, host: pve, os: "HAOS")
+        ha.vmid = 102; ha.cores = 2; ha.memoryMB = 4096; ha.diskGB = 32; ha.bridge = "vmbr0"; ha.vlanTag = "20"; ha.onBoot = true
+        let dns = dev("pihole", .lxc, "10.0.10.53", 0, host: pve2, os: "debian")
+        dns.vmid = 200; dns.cores = 1; dns.memoryMB = 512; dns.diskGB = 8; dns.bridge = "vmbr0"; dns.onBoot = true
+        let mon = dev("monitoring", .lxc, "10.0.10.60", 0, host: pve2, os: "debian")
+        mon.vmid = 201; mon.cores = 2; mon.memoryMB = 2048; mon.diskGB = 16; mon.bridge = "vmbr0"
+        let stack = ComposeStack(name: "monitoring")
+        stack.hostID = mon.id
+        stack.path = "/opt/stacks/monitoring"
+        stack.lastDeployed = .now
+        stack.updateMethod = "Watchtower"
+        stack.yaml = """
+        services:
+          grafana:
+            image: grafana/grafana:11.2.0
+            container_name: grafana
+            ports:
+              - "3000:3000"
+            volumes:
+              - ./grafana:/var/lib/grafana
+            environment:
+              - GF_SECURITY_ADMIN_PASSWORD=***
+            depends_on:
+              - prometheus
+            restart: unless-stopped
+          prometheus:
+            image: prom/prometheus:v2.54.1
+            ports:
+              - 9090:9090
+            volumes:
+              - ./prometheus.yml:/etc/prometheus/prometheus.yml
+            restart: unless-stopped
+        """
+        ctx.insert(stack)
+        _ = LabImport.sync(stack, in: ctx)
         let ups = dev("ups", .ups, "", 0, model: "1500 VA")
         ups.storage = ""
         let rack = LabRack(name: "Network Rack", units: 12)

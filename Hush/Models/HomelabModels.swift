@@ -44,7 +44,7 @@ struct RunbookRun: Codable, Hashable, Identifiable {
 }
 
 enum DeviceKind: String, CaseIterable, Identifiable, Codable {
-    case router, firewall, switchDevice = "switch", accessPoint, server, nas, hypervisor, vm, container, sbc, desktop, laptop, ups, pdu, modem, camera, iot, other
+    case router, firewall, switchDevice = "switch", accessPoint, server, nas, hypervisor, vm, lxc, container, sbc, desktop, laptop, ups, pdu, modem, camera, iot, other
 
     var id: String { rawValue }
     var label: String {
@@ -55,9 +55,10 @@ enum DeviceKind: String, CaseIterable, Identifiable, Codable {
         case .accessPoint: "Access Point"
         case .server: "Server"
         case .nas: "NAS"
-        case .hypervisor: "Hypervisor"
+        case .hypervisor: "Proxmox Node / Hypervisor"
         case .vm: "Virtual Machine"
-        case .container: "Container"
+        case .lxc: "LXC Container"
+        case .container: "Docker Container"
         case .sbc: "Single-Board Computer"
         case .desktop: "Desktop"
         case .laptop: "Laptop"
@@ -79,6 +80,7 @@ enum DeviceKind: String, CaseIterable, Identifiable, Codable {
         case .nas: "externaldrive.connected.to.line.below"
         case .hypervisor: "square.stack.3d.up"
         case .vm: "macwindow"
+        case .lxc: "cube"
         case .container: "shippingbox"
         case .sbc: "cpu"
         case .desktop: "desktopcomputer"
@@ -98,11 +100,12 @@ enum DeviceKind: String, CaseIterable, Identifiable, Codable {
         case .router, .firewall: 1
         case .switchDevice: 2
         case .accessPoint, .server, .nas, .hypervisor, .ups, .pdu: 3
-        case .vm, .container: 4
+        case .vm, .lxc, .container: 4
         default: 4
         }
     }
-    var isVirtual: Bool { self == .vm || self == .container }
+    var isVirtual: Bool { self == .vm || self == .lxc || self == .container }
+    var isGuest: Bool { self == .vm || self == .lxc }
 }
 
 enum DeviceStatus: String, CaseIterable, Identifiable {
@@ -151,6 +154,19 @@ final class LabDevice {
     var vaultItemID: UUID? = nil
     var notes: String = ""
     var tags: [String] = []
+    // Proxmox
+    var vmid: Int = 0
+    var cores: Int = 0
+    var memoryMB: Int = 0
+    var diskGB: Double = 0
+    var storagePool: String = ""
+    var bridge: String = ""
+    var vlanTag: String = ""
+    var onBoot: Bool = false
+    var haManaged: Bool = false
+    var guestTemplate: String = ""
+    var clusterName: String = ""
+    var backupJob: String = ""
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
     var spaceID: String = ""
@@ -198,6 +214,13 @@ final class LabService {
     var notes: String = ""
     var tags: [String] = []
     var lastUpdated: Date? = nil
+    // Compose
+    var stackID: UUID? = nil
+    var containerName: String = ""
+    var volumes: [String] = []
+    var networks: String = ""
+    var restartPolicy: String = ""
+    var envKeys: [String] = []
     var createdAt: Date = Date()
     var spaceID: String = ""
     var deletedAt: Date? = nil
@@ -216,6 +239,29 @@ final class LabService {
         set { dependsOnData = JSONField.encode(newValue) }
     }
     var portSummary: String { ports.map { "\($0.port)/\($0.proto.lowercased())" }.joined(separator: ", ") }
+}
+
+// MARK: - Compose stacks
+
+@Model
+final class ComposeStack {
+    var id: UUID = UUID()
+    var name: String = ""
+    var hostID: UUID? = nil
+    var path: String = ""
+    var yaml: String = ""
+    var notes: String = ""
+    var updateMethod: String = ""     // manual, watchtower, renovate, diun…
+    var lastDeployed: Date? = nil
+    var createdAt: Date = Date()
+    var updatedAt: Date = Date()
+    var spaceID: String = ""
+    var deletedAt: Date? = nil
+
+    init(name: String = "") {
+        self.name = name
+        spaceID = Spaces.newItemSpace
+    }
 }
 
 // MARK: - Subnets / VLANs
@@ -394,9 +440,10 @@ extension LabRack: HushItem {}
 extension LabLink: HushItem {}
 extension LabDiagram: HushItem {}
 extension Runbook: HushItem {}
+extension ComposeStack: HushItem {}
 
 enum HomelabModels {
     static let all: [any PersistentModel.Type] = [
-        LabDevice.self, LabService.self, LabSubnet.self, LabRack.self, LabLink.self, LabDiagram.self, Runbook.self,
+        LabDevice.self, LabService.self, LabSubnet.self, LabRack.self, LabLink.self, LabDiagram.self, Runbook.self, ComposeStack.self,
     ]
 }

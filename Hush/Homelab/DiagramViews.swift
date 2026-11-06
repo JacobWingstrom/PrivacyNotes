@@ -70,103 +70,44 @@ struct DiagramsList: View {
         switch layer {
         case "physical": "cable.connector"
         case "network": "network"
-        case "services": "app.connected.to.app.below.fill"
-        case "text": "text.alignleft"
-        default: "point.3.connected.trianglepath.dotted"
-        }
-    }
-
-    private func make(_ layer: String) {
-        let names = ["physical": "Physical Layout", "network": "Network Map", "services": "Services Map", "text": "Text Diagram", "custom": "Diagram"]
-        let d = LabDiagram(title: names[layer] ?? "Diagram", layer: layer)
-        let sp = settings.spaceFilter
-        let layout = DiagramBuilder.build(layer: layer, devices: devices.live(sp), links: links.live(sp),
-                                          services: services.live(sp), subnets: subnets.live(sp))
-        d.nodes = layout.0
-        d.edges = layout.1
-        if layer == "text" {
-            d.source = "# One link per line:  from -> to : label\nInternet -> Router : WAN\nRouter -> Switch : 10G\nSwitch -> Proxmox : 2.5G\nSwitch -> NAS : 10G\nSwitch -> Access Point\nProxmox -> Home Assistant\nProxmox -> Pi-hole\n"
-            let parsed = DiagramBuilder.parse(d.source)
-            d.nodes = parsed.0
-            d.edges = parsed.1
-        }
-        context.insert(d)
-        open = d
-    }
-}
-
-/// Builds diagrams from your inventory, or from "a -> b : label" text.
-enum DiagramBuilder {
-    static let spacingX = 170.0, spacingY = 150.0
-
-    static func build(layer: String, devices: [LabDevice], links: [LabLink], services: [LabService], subnets: [LabSubnet]) -> ([DiagramNode], [DiagramEdge]) {
-        switch layer {
-        case "physical":
-            let devs = devices.filter { !$0.kind.isVirtual && $0.status != .retired }
-            var nodes: [DiagramNode] = []
-            var idMap: [UUID: UUID] = [:]
-            let tiers = Dictionary(grouping: devs) { $0.kind.tier }
-            for (row, tier) in tiers.keys.sorted().enumerated() {
-                let items = tiers[tier]!.sorted { $0.displayName < $1.displayName }
-                for (i, d) in items.enumerated() {
-                    let x = (Double(i) - Double(items.count - 1) / 2) * spacingX
-                    let n = DiagramNode(deviceID: d.id, label: d.displayName, symbol: d.kind.symbol, x: x, y: Double(row) * spacingY)
-                    idMap[d.id] = n.id
-                    nodes.append(n)
-                }
-            }
-            let edges = links.compactMap { l -> DiagramEdge? in
-                guard let a = idMap[l.fromID], let b = idMap[l.toID] else { return nil }
-                return DiagramEdge(from: a, to: b, label: [l.speed, l.vlan.isEmpty ? "" : "VLAN \(l.vlan)"].filter { !$0.isEmpty }.joined(separator: " "),
-                                   style: l.kindRaw == "wifi" ? "wireless" : "solid")
-            }
-            return (nodes, edges)
-        case "network":
-            var nodes: [DiagramNode] = []
-            var edges: [DiagramEdge] = []
-            let router = devices.first { $0.kind == .router || $0.kind == .firewall }
-            let top = DiagramNode(deviceID: router?.id, label: router?.displayName ?? "Router", symbol: "wifi.router", x: 0, y: 0)
-            nodes.append(top)
-            let sorted = subnets.sorted { $0.vlanID < $1.vlanID }
-            for (i, s) in sorted.enumerated() {
-                let x = (Double(i) - Double(sorted.count - 1) / 2) * (spacingX * 1.3)
-                let sn = DiagramNode(label: "\(s.name.isEmpty ? "Subnet" : s.name)\n\(s.cidr)\(s.vlanID > 0 ? " · VLAN \(s.vlanID)" : "")",
-                                     symbol: "network", x: x, y: spacingY, colorName: s.colorName)
-                nodes.append(sn)
-                edges.append(DiagramEdge(from: top.id, to: sn.id, label: s.vlanID > 0 ? "VLAN \(s.vlanID)" : ""))
-                let members = devices.filter { d in IPv4(d.ip).map { CIDR(s.cidr)?.contains($0) ?? false } ?? false }
-                    .filter { $0.id != router?.id }
-                for (j, d) in members.enumerated() {
-                    let n = DiagramNode(deviceID: d.id, label: "\(d.displayName)\n\(d.ip)", symbol: d.kind.symbol,
-                                        x: x + Double(j % 2 == 0 ? -1 : 1) * 60, y: spacingY * 2 + Double(j / 2) * 110 + Double(j % 2) * 30,
-                                        colorName: s.colorName)
-                    nodes.append(n)
-                    edges.append(DiagramEdge(from: sn.id, to: n.id))
-                }
-            }
-            return (nodes, edges)
         case "services":
             var nodes: [DiagramNode] = []
             var edges: [DiagramEdge] = []
-            let hosts = devices.filter { d in !d.kind.isVirtual && (services.contains { $0.hostID == d.id } || devices.contains { $0.hostID == d.id }) }
+            let roots = devices.filter { d in d.hostID == nil && (devices.contains { $0.hostID == d.id } || services.contains { $0.hostID == d.id }) }
+            var cursor = 0.0
             var serviceNode: [UUID: UUID] = [:]
-            for (i, h) in hosts.enumerated() {
-                let x = (Double(i) - Double(hosts.count - 1) / 2) * (spacingX * 1.6)
-                let hn = DiagramNode(deviceID: h.id, label: h.displayName, symbol: h.kind.symbol, x: x, y: 0)
-                nodes.append(hn)
-                var children: [(String, String, UUID?, UUID?)] = devices.filter { $0.hostID == h.id }.map { ($0.displayName, $0.kind.symbol, $0.id, nil) }
-                children += services.filter { $0.hostID == h.id }.map { ($0.name.isEmpty ? "Service" : $0.name + ($0.ports.first.map { " :\($0.port)" } ?? ""), SymbolName.resolve($0.symbol, fallback: "app"), nil, $0.id) }
-                for (j, c) in children.enumerated() {
-                    let n = DiagramNode(deviceID: c.2, label: c.0, symbol: c.1, x: x + Double(j % 2 == 0 ? -1 : 1) * 70,
-                                        y: spacingY + Double(j / 2) * 100 + Double(j % 2) * 30)
+            func place(_ d: LabDevice, depth: Int) -> UUID {
+                let guests = devices.filter { $0.hostID == d.id }.sorted { ($0.vmid, $0.displayName) < ($1.vmid, $1.displayName) }
+                let svc = services.filter { $0.hostID == d.id }
+                var childIDs: [UUID] = []
+                let startX = cursor
+                for g in guests { childIDs.append(place(g, depth: depth + 1)) }
+                for sv in svc {
+                    let label = sv.name + (sv.ports.first.map { " :\($0.port)" } ?? "")
+                    let n = DiagramNode(label: label, symbol: SymbolName.resolve(sv.symbol, fallback: "shippingbox"), x: cursor, y: Double(depth + 1) * spacingY)
                     nodes.append(n)
-                    edges.append(DiagramEdge(from: hn.id, to: n.id, style: "dashed"))
-                    if let sid = c.3 { serviceNode[sid] = n.id }
+                    serviceNode[sv.id] = n.id
+                    childIDs.append(n.id)
+                    cursor += spacingX * 0.8
                 }
+                let x = childIDs.isEmpty ? cursor : (startX + cursor - spacingX * 0.8) / 2
+                if childIDs.isEmpty { cursor += spacingX * 0.8 }
+                let label = d.kind.isGuest ? "\(d.vmid > 0 ? "\(d.vmid) " : "")\(d.displayName)\n\(d.kind == .lxc ? "LXC" : "VM")\(d.ip.isEmpty ? "" : " · \(d.ip)")" : d.displayName
+                let n = DiagramNode(deviceID: d.id, label: label, symbol: d.kind.symbol, x: x, y: Double(depth) * spacingY,
+                                    colorName: d.kind == .lxc ? "orange" : (d.kind == .vm ? "blue" : "none"))
+                nodes.append(n)
+                for c in childIDs { edges.append(DiagramEdge(from: n.id, to: c, style: "dashed")) }
+                return n.id
             }
-            for s in services {
-                for dep in s.dependsOn {
-                    if let a = serviceNode[s.id], let b = serviceNode[dep] { edges.append(DiagramEdge(from: a, to: b, label: "needs")) }
+            for r in roots.sorted(by: { $0.displayName < $1.displayName }) {
+                _ = place(r, depth: 0)
+                cursor += spacingX * 0.5
+            }
+            let shift = cursor / 2
+            nodes = nodes.map { var m = $0; m.x -= shift; return m }
+            for sv in services {
+                for dep in sv.dependsOn {
+                    if let a = serviceNode[sv.id], let b = serviceNode[dep] { edges.append(DiagramEdge(from: a, to: b, label: "needs")) }
                 }
             }
             return (nodes, edges)

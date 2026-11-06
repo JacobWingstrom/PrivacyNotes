@@ -2,12 +2,14 @@ import SwiftUI
 import SwiftData
 
 enum LabTab: String, CaseIterable, Identifiable {
-    case overview, devices, services, network, diagrams, racks, runbooks, tools
+    case overview, proxmox, devices, stacks, services, network, diagrams, racks, runbooks, tools
     var id: String { rawValue }
     var label: String { rawValue.capitalized }
     var symbol: String {
         switch self {
         case .overview: "gauge.with.dots.needle.33percent"
+        case .proxmox: "square.stack.3d.up"
+        case .stacks: "shippingbox"
         case .devices: "server.rack"
         case .services: "app.connected.to.app.below.fill"
         case .network: "network"
@@ -30,6 +32,8 @@ struct HomelabView: View {
         Group {
             switch tab {
             case .overview: LabOverview { tabRaw = $0.rawValue }
+            case .proxmox: ProxmoxView()
+            case .stacks: StacksList()
             case .devices: DevicesList()
             case .services: ServicesList()
             case .network: NetworkList()
@@ -285,6 +289,8 @@ struct DeviceEditor: View {
     @Query private var links: [LabLink]
     @Query private var subnets: [LabSubnet]
     @Query private var vault: [VaultItem]
+    @Query private var stacks: [ComposeStack]
+    @State private var importingCompose = false
     @State private var deleting = false
     @State private var tagText = ""
     @State private var newService: LabService?
@@ -311,6 +317,9 @@ struct DeviceEditor: View {
                         ForEach(others.filter { [.hypervisor, .server, .nas, .sbc, .vm].contains($0.kind) }) { Text($0.displayName).tag(Optional($0.id)) }
                     }
                 }
+            }
+            if device.kind.isGuest || device.kind == .hypervisor {
+                proxmoxSection
             }
             Section {
                 field("Hostname", $device.hostname, mono: true)
@@ -408,6 +417,7 @@ struct DeviceEditor: View {
         .navigationTitle(isNew ? "New Device" : device.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $newService) { ServiceEditor(service: $0, isNew: true) }
+        .sheet(isPresented: $importingCompose) { ComposeImportSheet() }
         .navigationDestination(item: $newLink) { LinkEditor(link: $0, isNew: true) }
         .onAppear { tagText = device.tags.joined(separator: ", ") }
         .onChange(of: tagText) { device.tags = .tags(from: tagText) }
@@ -415,6 +425,76 @@ struct DeviceEditor: View {
             device.updatedAt = .now
             if deleting { TrashActions.trash(device) }
             else if isNew && device.name.trimmed.isEmpty && device.ip.isEmpty && device.hostname.isEmpty { context.delete(device) }
+        }
+    }
+
+    @ViewBuilder
+    private var proxmoxSection: some View {
+        Section {
+            if device.kind == .hypervisor {
+                field("Cluster name", $device.clusterName)
+                Stepper("CPU threads: \(device.cores == 0 ? "not set" : "\(device.cores)")", value: $device.cores, in: 0...512)
+                HStack {
+                    Text("RAM")
+                    Spacer()
+                    TextField("0", value: Binding(get: { device.memoryMB / 1024 }, set: { device.memoryMB = $0 * 1024 }), format: .number)
+                        .keyboardType(.numberPad).multilineTextAlignment(.trailing).frame(width: 80)
+                    Text("GB").foregroundStyle(.secondary)
+                }
+                field("Storage pools", $device.storagePool)
+            } else {
+                HStack {
+                    Text("VMID")
+                    Spacer()
+                    TextField("100", value: $device.vmid, format: .number.grouping(.never)).keyboardType(.numberPad).multilineTextAlignment(.trailing).frame(width: 90)
+                        .font(.hush(.body).monospaced())
+                }
+                Stepper("vCPUs: \(device.cores)", value: $device.cores, in: 0...128)
+                HStack {
+                    Text("Memory")
+                    Spacer()
+                    TextField("0", value: $device.memoryMB, format: .number.grouping(.never)).keyboardType(.numberPad).multilineTextAlignment(.trailing).frame(width: 90)
+                    Text("MB").foregroundStyle(.secondary)
+                }
+                HStack {
+                    Text("Disk")
+                    Spacer()
+                    TextField("0", value: $device.diskGB, format: .number).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 90)
+                    Text("GB").foregroundStyle(.secondary)
+                }
+                field("Storage", $device.storagePool)
+                field("Bridge", $device.bridge, mono: true)
+                field("VLAN tag", $device.vlanTag, mono: true, keyboard: .numberPad)
+                field(device.kind == .lxc ? "Template" : "ISO / OS", $device.guestTemplate)
+                Toggle("Start at Boot", isOn: $device.onBoot)
+                Toggle("HA Managed", isOn: $device.haManaged)
+                field("Backup job", $device.backupJob)
+            }
+        } header: {
+            Text("Proxmox")
+        } footer: {
+            if device.kind.isGuest && device.vmid > 0 {
+                Text("Tip: paste `\(device.kind == .lxc ? "pct" : "qm") config \(device.vmid)` in Homelab → Proxmox → Import to fill this in.")
+            }
+        }
+        if device.kind.isGuest || device.kind == .hypervisor {
+            let mine = stacks.live(nil).filter { $0.hostID == device.id }
+            Section("Compose Stacks (\(mine.count))") {
+                ForEach(mine) { st in
+                    NavigationLink { StackEditor(stack: st) } label: { Label(st.name.isEmpty ? "Stack" : st.name, systemImage: "shippingbox") }
+                }
+                Button { importingCompose = true } label: { Label("Import Compose", systemImage: "square.and.arrow.down") }
+            }
+            if device.kind == .hypervisor {
+                let guests = allDevices.live(nil).filter { $0.hostID == device.id }.sorted { $0.vmid < $1.vmid }
+                Section("Guests (\(guests.count))") {
+                    ForEach(guests) { g in
+                        NavigationLink { DeviceEditor(device: g) } label: {
+                            LabeledContent("\(g.vmid) · \(g.displayName)", value: g.kind == .lxc ? "LXC" : (g.kind == .vm ? "VM" : g.kind.label))
+                        }
+                    }
+                }
+            }
         }
     }
 
