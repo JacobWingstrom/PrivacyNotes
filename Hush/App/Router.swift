@@ -9,6 +9,8 @@ final class Router {
     var createRequest = 0
     /// A tag picked in the drawer, consumed by the Notes list.
     var noteTag: String?
+    /// A folder picked in the drawer, opened by the Notes list.
+    var noteFolder: UUID?
     /// Set when "+" on Home or All picks another section; that section creates an item when it appears.
     var pendingCreate: AppSection?
 

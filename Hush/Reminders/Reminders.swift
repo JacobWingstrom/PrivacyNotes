@@ -79,6 +79,27 @@ enum Reminders {
         scheduleRepeating(id: id, title: "🎂 \(contact.displayName)", body: "Birthday today", components: comps)
     }
 
+    static func sync(_ habit: Habit) {
+        let base = "habit.\(habit.id.uuidString)"
+        let ids = ["\(base).daily"] + (1...7).map { "\(base).\($0)" }
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
+        guard habit.remind, !habit.archived, habit.deletedAt == nil else { return }
+        let title = "\(habit.emoji) \(habit.name)".trimmed
+        let body = habit.target > 1 ? "Time for your habit (\(habit.target)× today)" : "Time for your habit"
+        var comps = DateComponents()
+        comps.hour = habit.reminderMinutes / 60
+        comps.minute = habit.reminderMinutes % 60
+        if habit.days.isEmpty {
+            scheduleRepeating(id: "\(base).daily", title: title, body: body, components: comps)
+        } else {
+            for d in habit.days {
+                var c = comps
+                c.weekday = d
+                scheduleRepeating(id: "\(base).\(d)", title: title, body: body, components: c)
+            }
+        }
+    }
+
     static func syncJournal(enabled: Bool, minutes: Int) {
         let id = "journal.daily"
         guard enabled else { cancel(id); return }

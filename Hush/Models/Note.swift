@@ -12,8 +12,11 @@ final class Note {
     var tags: [String] = []
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
+    var folderID: UUID? = nil
+    var spaceID: String = ""
+    var deletedAt: Date? = nil
 
-    init() {}
+    init() { spaceID = Spaces.newItemSpace }
 
     var isEmpty: Bool {
         title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
@@ -34,6 +37,11 @@ final class Note {
     }
 
     var color: Color? { NoteColor(rawValue: colorName)?.color }
+
+    /// Preview text with Markdown symbols removed.
+    var plainPreview: String { Markdown.plain(preview) }
+
+    var wordCount: Int { (title + " " + body).split { $0.isWhitespace || $0.isNewline }.count }
 
     func matches(_ query: String) -> Bool {
         guard !query.isEmpty else { return true }

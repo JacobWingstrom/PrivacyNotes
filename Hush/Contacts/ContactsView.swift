@@ -5,7 +5,9 @@ struct ContactsView: View {
     let title: String
     @Environment(\.modelContext) private var context
     @Environment(Router.self) private var router
-    @Query private var contacts: [Contact]
+    @Query private var contactsStored: [Contact]
+    @Environment(AppSettings.self) private var contactsSpace
+    private var contacts: [Contact] { contactsStored.live(contactsSpace.spaceFilter) }
     @State private var search = ""
     @State private var newContact: Contact?
 
@@ -56,8 +58,7 @@ struct ContactsView: View {
         NavigationLink { ContactEditorView(contact: c) } label: { ContactRow(contact: c) }
             .swipeActions {
                 Button(role: .destructive) {
-                    Reminders.cancel("birthday.\(c.id.uuidString)")
-                    context.delete(c)
+                    TrashActions.trash(c)
                 } label: { Label("Delete", systemImage: "trash") }
                 Button { c.isFavorite.toggle() } label: {
                     Label(c.isFavorite ? "Unfavorite" : "Favorite", systemImage: c.isFavorite ? "star.slash" : "star")
@@ -177,9 +178,11 @@ struct ContactEditorView: View {
         .onDisappear {
             contact.phones = contact.phones.filter { !$0.value.trimmed.isEmpty }
             contact.emails = contact.emails.filter { !$0.value.trimmed.isEmpty }
-            if deleting || (isNew && contact.isEmpty) {
+            if contact.isEmpty {
                 Reminders.cancel("birthday.\(contact.id.uuidString)")
                 context.delete(contact)
+            } else if deleting {
+                TrashActions.trash(contact)
             } else {
                 Reminders.sync(contact)
             }

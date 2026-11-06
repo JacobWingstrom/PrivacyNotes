@@ -6,7 +6,9 @@ struct JournalView: View {
     @Environment(\.modelContext) private var context
     @Environment(AppSettings.self) private var settings
     @Environment(Router.self) private var router
-    @Query(sort: \JournalEntry.date, order: .reverse) private var entries: [JournalEntry]
+    @Query(sort: \JournalEntry.date, order: .reverse) private var entriesStored: [JournalEntry]
+    @Environment(AppSettings.self) private var entriesSpace
+    private var entries: [JournalEntry] { entriesStored.live(entriesSpace.spaceFilter) }
     @State private var search = ""
     @State private var newEntry: JournalEntry?
 
@@ -43,7 +45,7 @@ struct JournalView: View {
                         NavigationLink { JournalEditorView(entry: entry) } label: { JournalRow(entry: entry, compact: settings.compactLists) }
                             .hushRow()
                     }
-                    .onDelete { offsets in offsets.map { items[$0] }.forEach(context.delete) }
+                    .onDelete { offsets in offsets.map { items[$0] }.forEach { TrashActions.trash($0) } }
                 } header: {
                     ListHeader(title: month.formatted(.dateTime.month(.wide).year()))
                 }
@@ -182,6 +184,6 @@ struct JournalEditorView: View {
         .onChange(of: entry.body) { entry.updatedAt = .now }
         .onChange(of: entry.title) { entry.updatedAt = .now }
         .onAppear { if isNew { focus = .body } }
-        .onDisappear { if deleting || entry.isEmpty { context.delete(entry) } }
+        .onDisappear { if entry.isEmpty { context.delete(entry) } else if deleting { TrashActions.trash(entry) } }
     }
 }

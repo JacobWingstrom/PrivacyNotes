@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit
 
 @main
 struct HushApp: App {
@@ -8,7 +9,8 @@ struct HushApp: App {
     @State private var lock = LockManager()
     @State private var router: Router
     @State private var phoneCalendar = PhoneCalendar()
-    private let container = Storage.makeContainer()
+    @Environment(\.scenePhase) private var scenePhase
+    private let container = Storage.shared
 
     init() {
         let s = AppSettings()
@@ -23,33 +25,23 @@ struct HushApp: App {
                 .environment(lock)
                 .environment(router)
                 .environment(phoneCalendar)
-                .onAppear { DemoData.seedIfRequested(container.mainContext) }
+                .onAppear {
+                    DemoData.seedIfRequested(container.mainContext)
+                    TrashActions.purgeExpired(container.mainContext)
+                }
+                .onOpenURL { url in
+                    // hush://new/<section> and hush://open/<section> from widgets
+                    guard url.scheme == "hush", let section = AppSection(rawValue: url.lastPathComponent) else { return }
+                    if url.host() == "new" { router.startNew(in: section) } else { router.go(section) }
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .background {
+                        settings.syncWidgetPrivacy()
+                        WidgetCenter.shared.reloadAllTimelines()
+                    }
+                }
         }
         .modelContainer(container)
     }
 }
 
-enum Storage {
-    /// Everything lives in the app's private Application Support folder.
-    /// iOS encrypts it with your device passcode; nothing ever leaves the phone.
-    static func makeContainer() -> ModelContainer {
-        let fm = FileManager.default
-        let dir = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Store", isDirectory: true)
-        let protection: [FileAttributeKey: Any] = [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication]
-        try? fm.createDirectory(at: dir, withIntermediateDirectories: true, attributes: protection)
-        try? fm.setAttributes(protection, ofItemAtPath: dir.path)
-
-        var excluded = dir
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = true // keep data out of iCloud backups too
-        try? excluded.setResourceValues(values)
-
-        let config = ModelConfiguration(url: dir.appendingPathComponent("hush.store"), cloudKitDatabase: .none)
-        do {
-            return try ModelContainer(for: Schema(Models.all), configurations: config)
-        } catch {
-            fatalError("Hush could not open its storage: \(error)")
-        }
-    }
-}

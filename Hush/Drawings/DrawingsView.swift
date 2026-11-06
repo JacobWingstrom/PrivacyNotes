@@ -7,7 +7,9 @@ struct DrawingsView: View {
     @Environment(\.modelContext) private var context
     @Environment(Router.self) private var router
     @Environment(\.palette) private var palette
-    @Query(sort: \Drawing.updatedAt, order: .reverse) private var drawings: [Drawing]
+    @Query(sort: \Drawing.updatedAt, order: .reverse) private var drawingsStored: [Drawing]
+    @Environment(AppSettings.self) private var drawingsSpace
+    private var drawings: [Drawing] { drawingsStored.live(drawingsSpace.spaceFilter) }
     @State private var search = ""
     @State private var newDrawing: Drawing?
     @State private var renaming: Drawing?
@@ -32,7 +34,7 @@ struct DrawingsView: View {
                     .buttonStyle(.plain)
                     .contextMenu {
                         Button { renameText = drawing.title; renaming = drawing } label: { Label("Rename", systemImage: "pencil") }
-                        Button(role: .destructive) { context.delete(drawing) } label: { Label("Delete", systemImage: "trash") }
+                        Button(role: .destructive) { TrashActions.trash(drawing) } label: { Label("Delete", systemImage: "trash") }
                     }
                 }
             }
@@ -117,7 +119,7 @@ struct DrawingEditorView: View {
             .onChange(of: drawing.data) { drawing.updatedAt = .now }
             .onDisappear {
                 let empty = (try? PKDrawing(data: drawing.data))?.strokes.isEmpty ?? true
-                if deleting || empty { context.delete(drawing) }
+                if deleting && !empty { TrashActions.trash(drawing) } else if empty { context.delete(drawing) }
             }
     }
 }

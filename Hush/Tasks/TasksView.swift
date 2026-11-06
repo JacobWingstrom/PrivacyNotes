@@ -15,8 +15,7 @@ enum TaskActions {
     }
 
     static func delete(_ task: TaskItem, in context: ModelContext) {
-        Reminders.cancel("task.\(task.id.uuidString)")
-        context.delete(task)
+        TrashActions.trash(task)
     }
 }
 
@@ -24,7 +23,9 @@ struct TasksView: View {
     let title: String
     @Environment(\.modelContext) private var context
     @Environment(Router.self) private var router
-    @Query(sort: \TaskItem.createdAt, order: .reverse) private var tasks: [TaskItem]
+    @Query(sort: \TaskItem.createdAt, order: .reverse) private var tasksStored: [TaskItem]
+    @Environment(AppSettings.self) private var tasksSpace
+    private var tasks: [TaskItem] { tasksStored.live(tasksSpace.spaceFilter) }
     @State private var filter: TaskFilter = .today
     @State private var listFilter: String?
     @State private var quickTitle = ""
@@ -263,7 +264,10 @@ struct TaskEditorView: View {
             if on { Task { await Reminders.requestPermission() } }
         }
         .onDisappear {
-            if deleting || task.title.trimmed.isEmpty {
+            if task.title.trimmed.isEmpty && task.notes.trimmed.isEmpty {
+                Reminders.cancel("task.\(task.id.uuidString)")
+                context.delete(task)
+            } else if deleting {
                 TaskActions.delete(task, in: context)
             } else {
                 Reminders.sync(task)

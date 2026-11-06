@@ -1,7 +1,7 @@
 import Foundation
 
 enum AppSection: String, CaseIterable, Identifiable, Codable, Hashable {
-    case home, all, notes, tasks, drawings, vault, files, journals, calendar, contacts, bookmarks
+    case home, all, notes, tasks, habits, drawings, vault, files, journals, calendar, contacts, bookmarks
 
     var id: String { rawValue }
     var defaultTitle: String { rawValue.capitalized }
@@ -12,6 +12,7 @@ enum AppSection: String, CaseIterable, Identifiable, Codable, Hashable {
         case .all: "square.grid.2x2"
         case .notes: "square.and.pencil"
         case .tasks: "checkmark.circle"
+        case .habits: "flame"
         case .drawings: "scribble.variable"
         case .vault: "lock.shield"
         case .files: "folder"
@@ -24,13 +25,14 @@ enum AppSection: String, CaseIterable, Identifiable, Codable, Hashable {
 }
 
 enum HomeBlock: String, CaseIterable, Identifiable, Codable, Hashable {
-    case quickAdd, mood, today, calendar, upcoming, pinned, recentNotes, journal, stats
+    case quickAdd, mood, today, habits, calendar, upcoming, pinned, recentNotes, journal, stats
 
     var id: String { rawValue }
     var title: String {
         switch self {
         case .quickAdd: "Quick Add"
         case .mood: "Mood Check-in"
+        case .habits: "Habits"
         case .calendar: "Calendar"
         case .today: "Today"
         case .upcoming: "Next 7 Days"
@@ -44,6 +46,7 @@ enum HomeBlock: String, CaseIterable, Identifiable, Codable, Hashable {
         switch self {
         case .quickAdd: "plus.circle"
         case .mood: "face.smiling"
+        case .habits: "flame"
         case .calendar: "calendar.badge.clock"
         case .today: "sun.max"
         case .upcoming: "calendar"

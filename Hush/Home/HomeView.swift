@@ -10,14 +10,26 @@ struct HomeView: View {
     @Environment(\.palette) private var palette
     @Environment(PhoneCalendar.self) private var phone
     @State private var phoneRef: PhoneEventRef?
-    @Query(sort: \Note.updatedAt, order: .reverse) private var notes: [Note]
+    @Query(sort: \Note.updatedAt, order: .reverse) private var notesStored: [Note]
+    @Environment(AppSettings.self) private var notesSpace
+    private var notes: [Note] { notesStored.live(notesSpace.spaceFilter) }
     @State private var choosing = false
+    @Query(sort: \Habit.sortIndex) private var habitsStored: [Habit]
+    private var habits: [Habit] { habitsStored.live(settings.spaceFilter) }
     @State private var calMonth = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
     @State private var calSelected = Calendar.current.startOfDay(for: .now)
-    @Query private var tasks: [TaskItem]
-    @Query(sort: \CalendarEvent.start) private var events: [CalendarEvent]
-    @Query(sort: \JournalEntry.date, order: .reverse) private var journals: [JournalEntry]
-    @Query private var bookmarks: [Bookmark]
+    @Query private var tasksStored: [TaskItem]
+    @Environment(AppSettings.self) private var tasksSpace
+    private var tasks: [TaskItem] { tasksStored.live(tasksSpace.spaceFilter) }
+    @Query(sort: \CalendarEvent.start) private var eventsStored: [CalendarEvent]
+    @Environment(AppSettings.self) private var eventsSpace
+    private var events: [CalendarEvent] { eventsStored.live(eventsSpace.spaceFilter) }
+    @Query(sort: \JournalEntry.date, order: .reverse) private var journalsStored: [JournalEntry]
+    @Environment(AppSettings.self) private var journalsSpace
+    private var journals: [JournalEntry] { journalsStored.live(journalsSpace.spaceFilter) }
+    @Query private var bookmarksStored: [Bookmark]
+    @Environment(AppSettings.self) private var bookmarksSpace
+    private var bookmarks: [Bookmark] { bookmarksStored.live(bookmarksSpace.spaceFilter) }
     @State private var customizing = false
     @State private var quickText = ""
     @State private var quickKind: QuickKind = .task
@@ -83,6 +95,7 @@ struct HomeView: View {
         switch block {
         case .quickAdd: quickAddCard
         case .mood: moodCard
+        case .habits: habitsCard
         case .calendar: calendarCard
         case .today: todayCard
         case .upcoming: upcomingCard
@@ -110,6 +123,25 @@ struct HomeView: View {
                     .submitLabel(.done)
                     .onSubmit(quickAdd)
                 if added { Image(systemName: "checkmark").foregroundStyle(.green).transition(.scale) }
+            }
+        }
+    }
+
+    private var habitsCard: some View {
+        let today = Date()
+        let due = habits.filter { !$0.archived && $0.isScheduled(on: today) }
+        return Card(title: "Habits", symbol: "flame") {
+            if due.isEmpty {
+                Button("Start a habit") { router.startNew(in: .habits) }.font(.subheadline)
+            }
+            ForEach(due.prefix(8)) { h in
+                HStack(spacing: 10) {
+                    Text(h.emoji).font(.title3)
+                    Text(h.name).lineLimit(1)
+                    if h.streak > 0 { Label("\(h.streak)", systemImage: "flame.fill").font(.caption.bold()).foregroundStyle(.orange) }
+                    Spacer()
+                    HabitCheck(habit: h, date: today, tint: h.color ?? settings.accentColor, size: 30)
+                }
             }
         }
     }

@@ -34,6 +34,9 @@ jobs:
         run: |
           mkdir -p Payload
           cp -R build/Release-iphoneos/Hush.app Payload/
+          # Ad-hoc sign with entitlements so AltStore can set up the App Group for widgets.
+          codesign -f -s - --entitlements Config/HushWidgets.entitlements Payload/Hush.app/PlugIns/HushWidgets.appex
+          codesign -f -s - --entitlements Config/Hush.entitlements Payload/Hush.app
           zip -qry Hush.ipa Payload
 
       - uses: actions/upload-artifact@v4

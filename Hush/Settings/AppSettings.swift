@@ -1,5 +1,18 @@
 import SwiftUI
 
+struct SpaceInfo: Codable, Hashable, Identifiable {
+    var id: String
+    var name: String
+    var symbol: String
+
+    static let defaults = [
+        SpaceInfo(id: Spaces.defaultID, name: "Personal", symbol: "house"),
+        SpaceInfo(id: "work", name: "Work", symbol: "briefcase"),
+    ]
+    static let symbols = ["house", "briefcase", "graduationcap", "heart", "star", "leaf", "hammer", "server.rack",
+                          "gamecontroller", "airplane", "cart", "dumbbell", "book", "paintbrush", "music.note", "person.2"]
+}
+
 @Observable
 final class AppSettings {
     private enum K {
@@ -14,6 +27,14 @@ final class AppSettings {
     }
 
     @ObservationIgnored private let store = UserDefaults.standard
+
+    // Spaces
+    var spaces: [SpaceInfo] { didSet { store.set(Self.encode(spaces), forKey: "spaces") } }
+    /// "all" or a space ID.
+    var currentSpace: String { didSet { store.set(currentSpace, forKey: Spaces.currentKey) } }
+    var widgetsShowContentWhenLocked: Bool {
+        didSet { store.set(widgetsShowContentWhenLocked, forKey: "widgetsWhenLocked"); syncWidgetPrivacy() }
+    }
     static let lockEnabledKey = K.lock
 
     // Appearance
@@ -36,7 +57,7 @@ final class AppSettings {
     var showGreeting: Bool { didSet { store.set(showGreeting, forKey: K.greeting) } }
 
     // Security
-    var lockEnabled: Bool { didSet { store.set(lockEnabled, forKey: K.lock) } }
+    var lockEnabled: Bool { didSet { store.set(lockEnabled, forKey: K.lock); syncWidgetPrivacy() } }
     var useBiometrics: Bool { didSet { store.set(useBiometrics, forKey: K.bio) } }
     var vaultUseBiometrics: Bool { didSet { store.set(vaultUseBiometrics, forKey: K.vaultBio) } }
     var autoLock: AutoLock { didSet { store.set(autoLock.rawValue, forKey: K.autoLock) } }
@@ -59,6 +80,9 @@ final class AppSettings {
 
     init() {
         let d = UserDefaults.standard
+        spaces = Self.decode(d.data(forKey: "spaces")) ?? SpaceInfo.defaults
+        currentSpace = d.string(forKey: Spaces.currentKey) ?? "all"
+        widgetsShowContentWhenLocked = d.bool(forKey: "widgetsWhenLocked")
         theme = ThemeMode(rawValue: d.string(forKey: K.theme) ?? "") ?? .charcoal
         accentHex = d.string(forKey: K.accent) ?? AccentPreset.all[0].hex
         fontStyle = FontStyle(rawValue: d.string(forKey: K.font) ?? "") ?? .system
@@ -96,6 +120,16 @@ final class AppSettings {
     }
 
     var accentColor: Color { Color(hex: accentHex) }
+
+    /// nil when showing every space.
+    var spaceFilter: String? { currentSpace == "all" ? nil : currentSpace }
+    var currentSpaceInfo: SpaceInfo? { spaces.first { $0.id == currentSpace } }
+
+    /// Widgets show content only if the app isn't locked, or you allowed it.
+    func syncWidgetPrivacy() {
+        AppGroup.defaults.set(!lockEnabled || widgetsShowContentWhenLocked, forKey: "widgetsShowContent")
+        AppGroup.defaults.set(accentHex, forKey: "accentHex")
+    }
 
     func palette(for scheme: ColorScheme) -> Palette {
         switch theme {

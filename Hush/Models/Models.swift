@@ -117,7 +117,10 @@ final class TaskItem {
     var createdAt: Date = Date()
     var completedAt: Date? = nil
 
-    init(title: String = "") { self.title = title }
+    var spaceID: String = ""
+    var deletedAt: Date? = nil
+
+    init(title: String = "") { self.title = title; spaceID = Spaces.newItemSpace }
 
     var priority: Priority {
         get { Priority(rawValue: priorityRaw) ?? .none }
@@ -171,9 +174,13 @@ final class CalendarEvent {
     var alertMinutes: Int = -1
     var createdAt: Date = Date()
 
+    var spaceID: String = ""
+    var deletedAt: Date? = nil
+
     init(start: Date = Date()) {
         self.start = start
         self.end = start.addingTimeInterval(3600)
+        spaceID = Spaces.newItemSpace
     }
 
     var color: Color? { NoteColor(rawValue: colorName)?.color }
@@ -198,7 +205,10 @@ final class JournalEntry {
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
 
-    init(date: Date = Date()) { self.date = date }
+    var spaceID: String = ""
+    var deletedAt: Date? = nil
+
+    init(date: Date = Date()) { self.date = date; spaceID = Spaces.newItemSpace }
 
     var mood: Mood {
         get { Mood(rawValue: moodRaw) ?? .none }
@@ -219,8 +229,10 @@ final class Drawing {
     @Attribute(.externalStorage) var data: Data = Data()
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
+    var spaceID: String = ""
+    var deletedAt: Date? = nil
 
-    init() {}
+    init() { spaceID = Spaces.newItemSpace }
 }
 
 // MARK: - Vault (contents are AES-GCM encrypted)
@@ -286,12 +298,20 @@ final class StoredFile {
     var size: Int = 0
     @Attribute(.externalStorage) var sealedData: Data = Data()
     var createdAt: Date = Date()
+    /// Set when the file is attached to a note.
+    var noteID: UUID? = nil
+    /// Text recognized in scans, used for search.
+    var searchText: String = ""
+    var spaceID: String = ""
+    var deletedAt: Date? = nil
 
-    init(name: String, typeIdentifier: String, data: Data) {
+    init(name: String, typeIdentifier: String, data: Data, noteID: UUID? = nil) {
         self.name = name
         self.typeIdentifier = typeIdentifier
         self.size = data.count
         self.sealedData = DataCrypto.seal(data)
+        self.noteID = noteID
+        spaceID = Spaces.newItemSpace
     }
 }
 
@@ -312,8 +332,10 @@ final class Contact {
     var emoji: String = ""
     var isFavorite: Bool = false
     var createdAt: Date = Date()
+    var spaceID: String = ""
+    var deletedAt: Date? = nil
 
-    init() {}
+    init() { spaceID = Spaces.newItemSpace }
 
     var phones: [LabeledValue] {
         get { JSONField.decode(phonesData, as: [LabeledValue].self) ?? [] }
@@ -349,8 +371,10 @@ final class Bookmark {
     var tags: [String] = []
     var isFavorite: Bool = false
     var createdAt: Date = Date()
+    var spaceID: String = ""
+    var deletedAt: Date? = nil
 
-    init() {}
+    init() { spaceID = Spaces.newItemSpace }
 
     var url: URL? { URL(string: urlString) }
     var host: String { url?.host() ?? urlString }
@@ -363,9 +387,232 @@ final class Bookmark {
     }
 }
 
+// MARK: - Folders (nested, for notes)
+
+@Model
+final class Folder {
+    var id: UUID = UUID()
+    var name: String = ""
+    var parentID: UUID? = nil
+    var emoji: String = ""
+    var createdAt: Date = Date()
+    var spaceID: String = ""
+    var deletedAt: Date? = nil
+
+    init(name: String, parentID: UUID? = nil) {
+        self.name = name
+        self.parentID = parentID
+        spaceID = Spaces.newItemSpace
+    }
+}
+
+// MARK: - Note history
+
+@Model
+final class NoteVersion {
+    var id: UUID = UUID()
+    var noteID: UUID = UUID()
+    var title: String = ""
+    var body: String = ""
+    var savedAt: Date = Date()
+
+    init(noteID: UUID, title: String, body: String) {
+        self.noteID = noteID
+        self.title = title
+        self.body = body
+    }
+}
+
+// MARK: - Your own note templates
+
+@Model
+final class NoteTemplate {
+    var id: UUID = UUID()
+    var name: String = ""
+    var emoji: String = ""
+    var title: String = ""
+    var body: String = ""
+    var createdAt: Date = Date()
+
+    init(name: String, emoji: String, title: String, body: String) {
+        self.name = name
+        self.emoji = emoji
+        self.title = title
+        self.body = body
+    }
+}
+
+// MARK: - Habits
+
+@Model
+final class Habit {
+    var id: UUID = UUID()
+    var name: String = ""
+    var emoji: String = "✅"
+    var colorName: String = "none"
+    var target: Int = 1
+    /// Weekdays (1 = Sunday … 7 = Saturday). Empty means every day.
+    var daysData: Data = Data()
+    var remind: Bool = false
+    var reminderMinutes: Int = 540
+    /// Completions per day, keyed "yyyy-MM-dd".
+    var logData: Data = Data()
+    var archived: Bool = false
+    var sortIndex: Int = 0
+    var createdAt: Date = Date()
+    var spaceID: String = ""
+    var deletedAt: Date? = nil
+
+    init(name: String = "") {
+        self.name = name
+        spaceID = Spaces.newItemSpace
+    }
+
+    var days: [Int] {
+        get { JSONField.decode(daysData, as: [Int].self) ?? [] }
+        set { daysData = JSONField.encode(newValue.sorted()) }
+    }
+    var log: [String: Int] {
+        get { JSONField.decode(logData, as: [String: Int].self) ?? [:] }
+        set { logData = JSONField.encode(newValue) }
+    }
+    var color: Color? { NoteColor(rawValue: colorName)?.color }
+
+    static func key(_ date: Date) -> String {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    func count(on date: Date) -> Int { log[Self.key(date)] ?? 0 }
+    func isDone(on date: Date) -> Bool { count(on: date) >= max(target, 1) }
+    func isScheduled(on date: Date) -> Bool {
+        days.isEmpty || days.contains(Calendar.current.component(.weekday, from: date))
+    }
+
+    /// One more completion; wraps back to zero once the target is reached.
+    func tap(on date: Date) {
+        var l = log
+        let k = Self.key(date)
+        let c = l[k] ?? 0
+        l[k] = c >= max(target, 1) ? 0 : c + 1
+        if l[k] == 0 { l.removeValue(forKey: k) }
+        log = l
+    }
+
+    func setDone(_ done: Bool, on date: Date) {
+        var l = log
+        l[Self.key(date)] = done ? max(target, 1) : nil
+        log = l
+    }
+
+    var streak: Int {
+        let cal = Calendar.current
+        var day = cal.startOfDay(for: .now)
+        if !isDone(on: day) { day = cal.date(byAdding: .day, value: -1, to: day) ?? day }
+        let earliest = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: createdAt)) ?? createdAt
+        var n = 0
+        var steps = 0
+        while steps < 3660 && day >= earliest {
+            if isScheduled(on: day) {
+                if isDone(on: day) { n += 1 } else { break }
+            }
+            day = cal.date(byAdding: .day, value: -1, to: day) ?? day
+            steps += 1
+        }
+        return n
+    }
+
+    var bestStreak: Int {
+        let cal = Calendar.current
+        var day = cal.startOfDay(for: createdAt)
+        let today = cal.startOfDay(for: .now)
+        var best = 0, run = 0, steps = 0
+        while day <= today && steps < 3660 {
+            if isScheduled(on: day) {
+                if isDone(on: day) { run += 1; best = max(best, run) } else if day < today { run = 0 }
+            }
+            day = cal.date(byAdding: .day, value: 1, to: day) ?? today.addingTimeInterval(1)
+            steps += 1
+        }
+        return best
+    }
+
+    /// Share of scheduled days completed over the last `n` days.
+    func completionRate(lastDays n: Int) -> Double {
+        let cal = Calendar.current
+        var scheduled = 0, done = 0
+        for i in 0..<n {
+            guard let d = cal.date(byAdding: .day, value: -i, to: .now), d >= cal.startOfDay(for: createdAt) else { continue }
+            if isScheduled(on: d) {
+                scheduled += 1
+                if isDone(on: d) { done += 1 }
+            }
+        }
+        return scheduled == 0 ? 0 : Double(done) / Double(scheduled)
+    }
+}
+
+// MARK: - Spaces & Trash
+
+enum Spaces {
+    static let defaultID = "personal"
+    static let currentKey = "currentSpace"
+    /// New items go into the space you're viewing (or Personal when viewing all spaces).
+    static var newItemSpace: String {
+        let current = UserDefaults.standard.string(forKey: currentKey) ?? "all"
+        return current == "all" ? defaultID : current
+    }
+}
+
+/// Everything that can live in a Space and go to the Trash.
+protocol HushItem: AnyObject {
+    var spaceID: String { get set }
+    var deletedAt: Date? { get set }
+}
+
+extension HushItem {
+    var isTrashed: Bool { deletedAt != nil }
+    var spaceKey: String { spaceID.isEmpty ? Spaces.defaultID : spaceID }
+    func inSpace(_ space: String?) -> Bool { space == nil || spaceKey == space }
+}
+
+extension Array where Element: HushItem {
+    /// Items not in the Trash and in the given space (nil = all spaces).
+    func live(_ space: String?) -> [Element] { filter { $0.deletedAt == nil && $0.inSpace(space) } }
+    var trashed: [Element] { filter { $0.deletedAt != nil } }
+}
+
+extension Note: HushItem {}
+extension TaskItem: HushItem {}
+extension CalendarEvent: HushItem {}
+extension JournalEntry: HushItem {}
+extension Drawing: HushItem {}
+extension StoredFile: HushItem {}
+extension Contact: HushItem {}
+extension Bookmark: HushItem {}
+extension Folder: HushItem {}
+extension Habit: HushItem {}
+
+/// Strips Markdown symbols for previews and widgets.
+enum Markdown {
+    static func plain(_ s: String) -> String {
+        var t = s
+        for (pattern, template) in [
+            ("(?m)^#{1,6}\\s+", ""), ("\\*\\*(.+?)\\*\\*", "$1"), ("~~(.+?)~~", "$1"),
+            ("(?<![\\w*])\\*(?!\\s)(.+?)\\*", "$1"), ("`([^`]+)`", "$1"),
+            ("\\[\\[([^\\]]+)\\]\\]", "$1"), ("\\[([^\\]]+)\\]\\([^)]+\\)", "$1"),
+            ("(?m)^\\s*[-*+]\\s\\[[ xX]\\]\\s", "☐ "), ("(?m)^>\\s?", ""),
+        ] {
+            t = t.replacingOccurrences(of: pattern, with: template, options: .regularExpression)
+        }
+        return t
+    }
+}
+
 enum Models {
     static let all: [any PersistentModel.Type] = [
         Note.self, TaskItem.self, CalendarEvent.self, JournalEntry.self, Drawing.self,
         VaultItem.self, StoredFile.self, Contact.self, Bookmark.self,
+        Folder.self, NoteVersion.self, NoteTemplate.self, Habit.self,
     ]
 }

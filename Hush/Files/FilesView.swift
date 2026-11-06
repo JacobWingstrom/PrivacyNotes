@@ -9,9 +9,13 @@ struct FilesView: View {
     @Environment(\.modelContext) private var context
     @Environment(Router.self) private var router
     @Environment(\.palette) private var palette
-    @Query(sort: \StoredFile.createdAt, order: .reverse) private var files: [StoredFile]
+    @Query(sort: \StoredFile.createdAt, order: .reverse) private var filesStored: [StoredFile]
+    @Environment(AppSettings.self) private var filesSpace
+    private var files: [StoredFile] { filesStored.live(filesSpace.spaceFilter) }
     @State private var kind: FileKind?
     @State private var choosingSource = false
+    @State private var attachKind: AttachmentKind?
+    @AppStorage("filesShowAttachments") private var showAttachments = true
     @State private var search = ""
     @State private var importingFiles = false
     @State private var pickingPhotos = false
@@ -44,7 +48,10 @@ struct FilesView: View {
     }
 
     private var filtered: [StoredFile] {
-        let base = files.filter { (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search)) && (kind?.matches($0) ?? true) }
+        let base = files.filter {
+            (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search) || $0.searchText.localizedCaseInsensitiveContains(search))
+                && (kind?.matches($0) ?? true) && (showAttachments || $0.noteID == nil)
+        }
         switch sort {
         case .newest: return base
         case .name: return base.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -74,13 +81,13 @@ struct FilesView: View {
                     .foregroundStyle(.primary)
                     .hushRow()
                     .swipeActions {
-                        Button(role: .destructive) { context.delete(file) } label: { Label("Delete", systemImage: "trash") }
+                        Button(role: .destructive) { TrashActions.trash(file) } label: { Label("Delete", systemImage: "trash") }
                         Button { renameText = file.name; renaming = file } label: { Label("Rename", systemImage: "pencil") }
                     }
                     .contextMenu {
                         Button { open(file) } label: { Label("Open", systemImage: "eye") }
                         Button { renameText = file.name; renaming = file } label: { Label("Rename", systemImage: "pencil") }
-                        Button(role: .destructive) { context.delete(file) } label: { Label("Delete", systemImage: "trash") }
+                        Button(role: .destructive) { TrashActions.trash(file) } label: { Label("Delete", systemImage: "trash") }
                     }
             }
         }
@@ -93,17 +100,16 @@ struct FilesView: View {
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             SearchHeader(text: $search, prompt: "Search files…") {
-                FilterButton(active: sort != .newest) {
+                FilterButton(active: sort != .newest || !showAttachments) {
                     Picker("Sort", selection: $sort) { ForEach(FileSort.allCases) { Text($0.label).tag($0) } }
+                    Toggle("Show files attached to notes", isOn: $showAttachments)
                 }
             }
         }
         .navigationTitle(title)
         .onCreate(.files) { choosingSource = true }
-        .confirmationDialog("Import", isPresented: $choosingSource) {
-            Button("From Files") { importingFiles = true }
-            Button("From Photos") { pickingPhotos = true }
-        }
+        .attachmentChooser(isPresented: $choosingSource) { attachKind = $0 }
+        .attachmentPresenter($attachKind, noteID: nil)
         .fileImporter(isPresented: $importingFiles, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { importFiles(urls) }
         }
@@ -165,7 +171,10 @@ private struct FileRow: View {
                 .background(.tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
                 .foregroundStyle(.tint)
             VStack(alignment: .leading, spacing: 2) {
-                Text(file.name).lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(file.name).lineLimit(1)
+                    if file.noteID != nil { Image(systemName: "paperclip").font(.caption2).foregroundStyle(.secondary) }
+                }
                 Text("\(ByteCountFormatter.string(fromByteCount: Int64(file.size), countStyle: .file)) · \(file.createdAt.formatted(date: .abbreviated, time: .omitted))")
                     .font(.caption).foregroundStyle(.secondary)
             }

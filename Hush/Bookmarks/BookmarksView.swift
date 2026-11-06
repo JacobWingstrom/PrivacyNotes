@@ -7,7 +7,9 @@ struct BookmarksView: View {
     @Environment(\.openURL) private var openURL
     @Environment(Router.self) private var router
     @State private var quickLink = ""
-    @Query(sort: \Bookmark.createdAt, order: .reverse) private var bookmarks: [Bookmark]
+    @Query(sort: \Bookmark.createdAt, order: .reverse) private var bookmarksStored: [Bookmark]
+    @Environment(AppSettings.self) private var bookmarksSpace
+    private var bookmarks: [Bookmark] { bookmarksStored.live(bookmarksSpace.spaceFilter) }
     @State private var search = ""
     @State private var tagFilter: String?
     @State private var favoritesOnly = false
@@ -51,7 +53,7 @@ struct BookmarksView: View {
                         Button { b.isFavorite.toggle() } label: { Label(b.isFavorite ? "Unfavorite" : "Favorite", systemImage: "star") }
                         Button { UIPasteboard.general.string = b.urlString } label: { Label("Copy Link", systemImage: "doc.on.doc") }
                         if let url = b.url { ShareLink(item: url) { Label("Share…", systemImage: "square.and.arrow.up") } }
-                        Button(role: .destructive) { context.delete(b) } label: { Label("Delete", systemImage: "trash") }
+                        Button(role: .destructive) { TrashActions.trash(b) } label: { Label("Delete", systemImage: "trash") }
                     } label: {
                         Image(systemName: "ellipsis")
                             .rotationEffect(.degrees(90))
@@ -63,7 +65,7 @@ struct BookmarksView: View {
                     .foregroundStyle(.primary)
                     .hushRow()
                     .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) { context.delete(b) } label: { Label("Delete", systemImage: "trash") }
+                        Button(role: .destructive) { TrashActions.trash(b) } label: { Label("Delete", systemImage: "trash") }
                         Button { editing = b } label: { Label("Edit", systemImage: "pencil") }
                     }
                     .swipeActions(edge: .leading) {
@@ -74,7 +76,7 @@ struct BookmarksView: View {
                         Button { editing = b } label: { Label("Edit", systemImage: "pencil") }
                         Button { UIPasteboard.general.string = b.urlString } label: { Label("Copy Link", systemImage: "doc.on.doc") }
                         if let url = b.url { ShareLink(item: url) { Label("Share…", systemImage: "square.and.arrow.up") } }
-                        Button(role: .destructive) { context.delete(b) } label: { Label("Delete", systemImage: "trash") }
+                        Button(role: .destructive) { TrashActions.trash(b) } label: { Label("Delete", systemImage: "trash") }
                     }
             }
         }

@@ -7,13 +7,27 @@ struct AllItemsView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(Router.self) private var router
     @State private var choosing = false
-    @Query private var notes: [Note]
-    @Query private var tasks: [TaskItem]
-    @Query private var events: [CalendarEvent]
-    @Query private var journals: [JournalEntry]
-    @Query private var drawings: [Drawing]
-    @Query private var contacts: [Contact]
-    @Query private var bookmarks: [Bookmark]
+    @Query private var notesStored: [Note]
+    @Environment(AppSettings.self) private var notesSpace
+    private var notes: [Note] { notesStored.live(notesSpace.spaceFilter) }
+    @Query private var tasksStored: [TaskItem]
+    @Environment(AppSettings.self) private var tasksSpace
+    private var tasks: [TaskItem] { tasksStored.live(tasksSpace.spaceFilter) }
+    @Query private var eventsStored: [CalendarEvent]
+    @Environment(AppSettings.self) private var eventsSpace
+    private var events: [CalendarEvent] { eventsStored.live(eventsSpace.spaceFilter) }
+    @Query private var journalsStored: [JournalEntry]
+    @Environment(AppSettings.self) private var journalsSpace
+    private var journals: [JournalEntry] { journalsStored.live(journalsSpace.spaceFilter) }
+    @Query private var drawingsStored: [Drawing]
+    @Environment(AppSettings.self) private var drawingsSpace
+    private var drawings: [Drawing] { drawingsStored.live(drawingsSpace.spaceFilter) }
+    @Query private var contactsStored: [Contact]
+    @Environment(AppSettings.self) private var contactsSpace
+    private var contacts: [Contact] { contactsStored.live(contactsSpace.spaceFilter) }
+    @Query private var bookmarksStored: [Bookmark]
+    @Environment(AppSettings.self) private var bookmarksSpace
+    private var bookmarks: [Bookmark] { bookmarksStored.live(bookmarksSpace.spaceFilter) }
     @State private var search = ""
     @State private var kind: AppSection?
 

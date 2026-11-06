@@ -8,14 +8,37 @@ struct DrawerView: View {
     @Environment(Router.self) private var router
     @Environment(LockManager.self) private var lock
     @Environment(\.palette) private var palette
-    @Query private var notes: [Note]
-    @Query private var tasks: [TaskItem]
-    @Query private var drawings: [Drawing]
-    @Query private var files: [StoredFile]
-    @Query private var journals: [JournalEntry]
-    @Query private var events: [CalendarEvent]
-    @Query private var contacts: [Contact]
-    @Query private var bookmarks: [Bookmark]
+    @Query private var notesStored: [Note]
+    @Environment(AppSettings.self) private var notesSpace
+    private var notes: [Note] { notesStored.live(notesSpace.spaceFilter) }
+    @Query private var tasksStored: [TaskItem]
+    @Environment(AppSettings.self) private var tasksSpace
+    private var tasks: [TaskItem] { tasksStored.live(tasksSpace.spaceFilter) }
+    @Query private var drawingsStored: [Drawing]
+    @Environment(AppSettings.self) private var drawingsSpace
+    private var drawings: [Drawing] { drawingsStored.live(drawingsSpace.spaceFilter) }
+    @Query private var filesStored: [StoredFile]
+    @Environment(AppSettings.self) private var filesSpace
+    private var files: [StoredFile] { filesStored.live(filesSpace.spaceFilter) }
+    @Query private var journalsStored: [JournalEntry]
+    @Environment(AppSettings.self) private var journalsSpace
+    private var journals: [JournalEntry] { journalsStored.live(journalsSpace.spaceFilter) }
+    @Query private var eventsStored: [CalendarEvent]
+    @Environment(AppSettings.self) private var eventsSpace
+    private var events: [CalendarEvent] { eventsStored.live(eventsSpace.spaceFilter) }
+    @Query private var contactsStored: [Contact]
+    @Environment(AppSettings.self) private var contactsSpace
+    private var contacts: [Contact] { contactsStored.live(contactsSpace.spaceFilter) }
+    @Query private var bookmarksStored: [Bookmark]
+    @Environment(AppSettings.self) private var bookmarksSpace
+    private var bookmarks: [Bookmark] { bookmarksStored.live(bookmarksSpace.spaceFilter) }
+    @Query private var habitsStored: [Habit]
+    @Query private var foldersStored: [Folder]
+    @Query private var trashNotes: [Note]
+    @Query private var trashTasks: [TaskItem]
+    @Query private var trashOther: [JournalEntry]
+    @State private var showTrash = false
+    private var habits: [Habit] { habitsStored.live(settings.spaceFilter) }
     @State private var dragOffset: CGFloat = 0
 
     private var tags: [(String, Int)] {
@@ -34,6 +57,9 @@ struct DrawerView: View {
             return counts.reduce(0, +)
         case .notes: return notes.count
         case .tasks: return tasks.filter { !$0.isDone }.count
+        case .habits:
+            let today = Date()
+            return habits.filter { !$0.archived && $0.isScheduled(on: today) && !$0.isDone(on: today) }.count
         case .drawings: return drawings.count
         case .files: return files.count
         case .journals: return journals.count
@@ -62,6 +88,10 @@ struct DrawerView: View {
             .padding(.vertical, 14)
             Rectangle().fill(palette.border).frame(height: 1)
 
+            SpaceSwitcher()
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 2) {
                     header("Sections") {
@@ -71,6 +101,19 @@ struct DrawerView: View {
                     ForEach(settings.visibleSections) { s in
                         DrawerRow(symbol: s.symbol, title: settings.title(for: s), count: count(s),
                                   selected: router.section == s) { router.go(s) }
+                    }
+                    let topFolders = foldersStored.live(settings.spaceFilter).filter { $0.parentID == nil }
+                        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+                    if !topFolders.isEmpty {
+                        Rectangle().fill(palette.border).frame(height: 1).padding(.vertical, 10)
+                        header("Folders") { EmptyView() }
+                        ForEach(topFolders) { f in
+                            let ids = FolderPath.descendants(of: f.id, in: foldersStored)
+                            DrawerRow(symbol: "folder", title: f.name, count: notes.filter { $0.folderID.map(ids.contains) ?? false }.count, selected: false) {
+                                router.noteFolder = f.id
+                                router.go(.notes)
+                            }
+                        }
                     }
                     if !tags.isEmpty {
                         Rectangle().fill(palette.border).frame(height: 1).padding(.vertical, 10)
@@ -90,6 +133,16 @@ struct DrawerView: View {
             HStack(spacing: 28) {
                 Button { close(); openSettings() } label: { Image(systemName: "gearshape") }
                     .accessibilityLabel("Settings")
+                Button { showTrash = true } label: {
+                    Image(systemName: trashCount > 0 ? "trash.fill" : "trash")
+                        .overlay(alignment: .topTrailing) {
+                            if trashCount > 0 {
+                                Text("\(trashCount)").font(.system(size: 9, weight: .bold)).foregroundStyle(.white)
+                                    .padding(3).background(Circle().fill(.red)).offset(x: 10, y: -8)
+                            }
+                        }
+                }
+                .accessibilityLabel("Trash, \(trashCount) items")
                 if settings.lockEnabled {
                     Button { lock.lockNow() } label: { Image(systemName: "lock") }.accessibilityLabel("Lock now")
                 }
@@ -102,6 +155,11 @@ struct DrawerView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
+        .sheet(isPresented: $showTrash) {
+            NavigationStack {
+                TrashView().toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { showTrash = false } } }
+            }
+        }
         .frame(width: 310)
         .frame(maxHeight: .infinity)
         .background(palette.surface.ignoresSafeArea())
@@ -112,6 +170,10 @@ struct DrawerView: View {
                 if v.translation.width < -80 { close() }
                 withAnimation(.snappy) { dragOffset = 0 }
             })
+    }
+
+    private var trashCount: Int {
+        trashNotes.trashed.count + trashTasks.trashed.count + trashOther.trashed.count
     }
 
     private func header<Accessory: View>(_ title: String, @ViewBuilder accessory: () -> Accessory) -> some View {
@@ -159,6 +221,42 @@ private struct DrawerRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// Personal / Work (and any spaces you add). Each space shows only its own items.
+struct SpaceSwitcher: View {
+    @Environment(AppSettings.self) private var settings
+    @Environment(\.palette) private var palette
+
+    var body: some View {
+        HStack(spacing: 4) {
+            segment(id: "all", symbol: "square.stack", label: "All")
+            ForEach(settings.spaces) { sp in segment(id: sp.id, symbol: sp.symbol, label: sp.name) }
+        }
+        .padding(4)
+        .background(palette.field, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(palette.border))
+    }
+
+    private func segment(id: String, symbol: String, label: String) -> some View {
+        let selected = settings.currentSpace == id
+        return Button {
+            withAnimation(.snappy) { settings.currentSpace = id }
+        } label: {
+            VStack(spacing: 2) {
+                Image(systemName: symbol).font(.body.weight(.medium))
+                Text(label).font(.caption2).lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .foregroundStyle(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            .background {
+                if selected { RoundedRectangle(cornerRadius: 9, style: .continuous).fill(.tint.opacity(0.18)) }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(label) space")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }

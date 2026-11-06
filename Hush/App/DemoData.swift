@@ -26,6 +26,44 @@ enum DemoData {
             ctx.insert(note)
         }
 
+        let lab = Folder(name: "Homelab")
+        ctx.insert(lab)
+        let servers = Folder(name: "Servers", parentID: lab.id)
+        ctx.insert(servers)
+        let md = Note()
+        md.title = "Homelab notes"
+        md.emoji = "🖥️"
+        md.folderID = lab.id
+        md.tags = ["homelab"]
+        md.body = """
+        ## To do this weekend
+        - [x] Update the NAS firmware
+        - [ ] Test restoring last night's **backup**
+        - [ ] Move *media server* to the new VLAN
+
+        > Remember: snapshot before every upgrade.
+
+        See [[Trip ideas]] for the off-site backup drive plan.
+
+        `docker compose pull && docker compose up -d`
+        """
+        md.updatedAt = day(0, 11)
+        ctx.insert(md)
+
+        for (i, h) in [("Drink water", "💧", 8), ("Read", "📖", 1), ("Stretch", "🧘", 1), ("Vitamins", "💊", 1)].enumerated() {
+            let habit = Habit(name: h.0)
+            habit.emoji = h.1
+            habit.target = h.2
+            habit.sortIndex = i
+            habit.createdAt = day(-20)
+            var log: [String: Int] = [:]
+            for d in 1...14 where (d + i) % 4 != 0 { log[Habit.key(day(-d))] = h.2 }
+            if i == 1 { log[Habit.key(day(0))] = 1 }
+            if i == 0 { log[Habit.key(day(0))] = 3 }
+            habit.log = log
+            ctx.insert(habit)
+        }
+
         let tasks: [(String, Int?, Int)] = [("Vitamins", 0, 0), ("Call the dentist", 0, 3), ("Water plants", 1, 1), ("Renew library card", 3, 2)]
         for t in tasks {
             let task = TaskItem(title: t.0)

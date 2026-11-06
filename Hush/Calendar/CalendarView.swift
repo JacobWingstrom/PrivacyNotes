@@ -9,11 +9,17 @@ struct CalendarView: View {
     @Environment(\.palette) private var palette
     @Environment(PhoneCalendar.self) private var phone
     @State private var phoneRef: PhoneEventRef?
-    @Query(sort: \CalendarEvent.start) private var events: [CalendarEvent]
+    @Query(sort: \CalendarEvent.start) private var eventsStored: [CalendarEvent]
+    @Environment(AppSettings.self) private var eventsSpace
+    private var events: [CalendarEvent] { eventsStored.live(eventsSpace.spaceFilter) }
     @State private var collapsed = false
     @State private var search = ""
-    @Query private var tasks: [TaskItem]
-    @Query(sort: \JournalEntry.date, order: .reverse) private var journals: [JournalEntry]
+    @Query private var tasksStored: [TaskItem]
+    @Environment(AppSettings.self) private var tasksSpace
+    private var tasks: [TaskItem] { tasksStored.live(tasksSpace.spaceFilter) }
+    @Query(sort: \JournalEntry.date, order: .reverse) private var journalsStored: [JournalEntry]
+    @Environment(AppSettings.self) private var journalsSpace
+    private var journals: [JournalEntry] { journalsStored.live(journalsSpace.spaceFilter) }
     @State private var month = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
     @State private var selected = Calendar.current.startOfDay(for: .now)
     @State private var agenda = false
@@ -384,9 +390,11 @@ struct EventEditorView: View {
             if v >= 0 { Task { await Reminders.requestPermission() } }
         }
         .onDisappear {
-            if deleting || (isNew && event.title.trimmed.isEmpty) {
+            if isNew && event.title.trimmed.isEmpty {
                 Reminders.cancel("event.\(event.id.uuidString)")
                 context.delete(event)
+            } else if deleting {
+                TrashActions.trash(event)
             } else {
                 if event.end < event.start { event.end = event.start }
                 Reminders.sync(event)

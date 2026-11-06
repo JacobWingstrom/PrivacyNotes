@@ -21,10 +21,15 @@ struct SettingsView: View {
                 Item(id: "Import from iPhone", symbol: "square.and.arrow.down", keywords: "contacts reminders events notes vcf ics markdown text") { AnyView(ImportView()) },
                 Item(id: "Statistics", symbol: "chart.bar", keywords: "counts words") { AnyView(StatisticsView()) },
                 Item(id: "Backup & Restore", symbol: "arrow.triangle.2.circlepath", keywords: "import export file") { AnyView(BackupView()) },
+                Item(id: "Export", symbol: "square.and.arrow.up", keywords: "markdown csv pdf vcf ics html share") { AnyView(ExportView()) },
+                Item(id: "Trash", symbol: "trash", keywords: "deleted restore recover") { AnyView(TrashView()) },
             ]),
             ("Preferences", [
                 Item(id: "Design", symbol: "paintpalette", keywords: "theme dark light accent color font text size icon") { AnyView(DesignSettings()) },
+                Item(id: "Spaces", symbol: "square.split.2x1", keywords: "personal work separate") { AnyView(SpacesSettings()) },
                 Item(id: "Layout", symbol: "sidebar.left", keywords: "sidebar sections home dashboard start launch") { AnyView(LayoutSettings()) },
+                Item(id: "Templates", symbol: "doc.on.doc", keywords: "note homelab meeting") { AnyView(TemplatesSettings()) },
+                Item(id: "Widgets & Siri", symbol: "square.grid.2x2", keywords: "home screen shortcuts voice") { AnyView(WidgetSiriSettings()) },
                 Item(id: "Lists", symbol: "list.bullet", keywords: "compact preview sort completed") { AnyView(ListSettings()) },
                 Item(id: "Reminders", symbol: "bell", keywords: "notifications journal time") { AnyView(ReminderSettings()) },
                 Item(id: "Date & Time", symbol: "calendar", keywords: "week monday sunday") { AnyView(DateSettings()) },
@@ -319,14 +324,30 @@ struct PrivacyInfo: View {
 }
 
 struct StatisticsView: View {
-    @Query private var notes: [Note]
-    @Query private var tasks: [TaskItem]
-    @Query private var journals: [JournalEntry]
-    @Query private var drawings: [Drawing]
-    @Query private var files: [StoredFile]
-    @Query private var events: [CalendarEvent]
-    @Query private var contacts: [Contact]
-    @Query private var bookmarks: [Bookmark]
+    @Query private var notesStored: [Note]
+    @Environment(AppSettings.self) private var notesSpace
+    private var notes: [Note] { notesStored.live(notesSpace.spaceFilter) }
+    @Query private var tasksStored: [TaskItem]
+    @Environment(AppSettings.self) private var tasksSpace
+    private var tasks: [TaskItem] { tasksStored.live(tasksSpace.spaceFilter) }
+    @Query private var journalsStored: [JournalEntry]
+    @Environment(AppSettings.self) private var journalsSpace
+    private var journals: [JournalEntry] { journalsStored.live(journalsSpace.spaceFilter) }
+    @Query private var drawingsStored: [Drawing]
+    @Environment(AppSettings.self) private var drawingsSpace
+    private var drawings: [Drawing] { drawingsStored.live(drawingsSpace.spaceFilter) }
+    @Query private var filesStored: [StoredFile]
+    @Environment(AppSettings.self) private var filesSpace
+    private var files: [StoredFile] { filesStored.live(filesSpace.spaceFilter) }
+    @Query private var eventsStored: [CalendarEvent]
+    @Environment(AppSettings.self) private var eventsSpace
+    private var events: [CalendarEvent] { eventsStored.live(eventsSpace.spaceFilter) }
+    @Query private var contactsStored: [Contact]
+    @Environment(AppSettings.self) private var contactsSpace
+    private var contacts: [Contact] { contactsStored.live(contactsSpace.spaceFilter) }
+    @Query private var bookmarksStored: [Bookmark]
+    @Environment(AppSettings.self) private var bookmarksSpace
+    private var bookmarks: [Bookmark] { bookmarksStored.live(bookmarksSpace.spaceFilter) }
 
     var body: some View {
         let words = notes.reduce(0) { $0 + $1.body.split { $0.isWhitespace }.count + $1.title.split { $0.isWhitespace }.count }
@@ -438,5 +459,99 @@ struct AppIconPicker: View {
             .padding()
         }
         .navigationTitle("App Icon")
+    }
+}
+
+struct SpacesSettings: View {
+    @Environment(AppSettings.self) private var settings
+    @State private var adding = false
+    @State private var newName = ""
+
+    var body: some View {
+        @Bindable var s = settings
+        HushForm {
+            Section {
+                Picker("Showing", selection: $s.currentSpace) {
+                    Text("All Spaces").tag("all")
+                    ForEach(settings.spaces) { Text($0.name).tag($0.id) }
+                }
+            } footer: {
+                Text("Switch spaces from the top of the menu (☰). New items go into the space you're viewing.")
+            }
+            Section("Spaces") {
+                ForEach($s.spaces) { $sp in
+                    HStack(spacing: 12) {
+                        Menu {
+                            ForEach(SpaceInfo.symbols, id: \.self) { sym in
+                                Button { sp.symbol = sym } label: { Label(sym, systemImage: sym) }
+                            }
+                        } label: {
+                            Image(systemName: sp.symbol).foregroundStyle(.tint).frame(width: 28)
+                        }
+                        TextField("Name", text: $sp.name)
+                    }
+                }
+                .onDelete { idx in
+                    let removing = idx.map { settings.spaces[$0].id }
+                    guard !removing.contains(Spaces.defaultID) else { return }
+                    settings.spaces.remove(atOffsets: idx)
+                    if removing.contains(settings.currentSpace) { settings.currentSpace = "all" }
+                }
+                Button { newName = ""; adding = true } label: { Label("Add Space", systemImage: "plus") }
+            }
+            Section {
+                Text("Deleting a space doesn't delete anything: its items show up under All Spaces and can be moved. The Personal space can't be removed.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("Spaces")
+        .alert("New Space", isPresented: $adding) {
+            TextField("Name (e.g. School)", text: $newName)
+            Button("Add") {
+                let name = newName.trimmed
+                guard !name.isEmpty else { return }
+                settings.spaces.append(SpaceInfo(id: UUID().uuidString, name: name, symbol: "star"))
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+}
+
+struct WidgetSiriSettings: View {
+    @Environment(AppSettings.self) private var settings
+
+    var body: some View {
+        @Bindable var s = settings
+        HushForm {
+            Section {
+                Label("**Today** — tasks due today", systemImage: "checkmark.circle")
+                Label("**Habits** — check them off from the Home Screen", systemImage: "flame")
+                Label("**Quick Add** — new note, task, journal entry or habit", systemImage: "plus.square")
+            } header: {
+                Text("Widgets")
+            } footer: {
+                Text("Long-press your Home Screen, tap Edit → Add Widget, and search for Hush.")
+            }
+            Section {
+                Toggle("Show Widget Content While Locked", isOn: $s.widgetsShowContentWhenLocked)
+                    .disabled(!settings.lockEnabled)
+            } footer: {
+                Text(settings.lockEnabled
+                     ? "With App Lock on, widgets show “Hush is locked” unless you allow this."
+                     : "Turn on App Lock to hide widget content.")
+            }
+            Section {
+                Label("“Add a task in Hush”", systemImage: "mic")
+                Label("“Take a note in Hush”", systemImage: "mic")
+                Label("“Log a habit in Hush”", systemImage: "mic")
+                Label("“Journal in Hush”", systemImage: "mic")
+            } header: {
+                Text("Siri & Shortcuts")
+            } footer: {
+                Text("Siri can add things to Hush but never reads your content aloud. These actions also appear in the Shortcuts app.")
+            }
+        }
+        .navigationTitle("Widgets & Siri")
+        .onAppear { settings.syncWidgetPrivacy() }
     }
 }

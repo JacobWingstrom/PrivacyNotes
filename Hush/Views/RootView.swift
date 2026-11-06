@@ -175,6 +175,7 @@ struct SectionView: View {
         case .all: AllItemsView(title: title)
         case .notes: NotesListView(title: title)
         case .tasks: TasksView(title: title)
+        case .habits: HabitsView(title: title)
         case .drawings: DrawingsView(title: title)
         case .vault: VaultView(title: title)
         case .files: FilesView(title: title)
