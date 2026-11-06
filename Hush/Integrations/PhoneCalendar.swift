@@ -105,14 +105,14 @@ struct PhoneEventRow: View {
                         Text("\(event.startDate.formatted(date: .omitted, time: .shortened)) – \(event.endDate.formatted(date: .omitted, time: .shortened))")
                     }
                 }
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.hush(.caption)).foregroundStyle(.secondary)
                 if let loc = event.location, !loc.isEmpty {
-                    Label(loc, systemImage: "mappin").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Label(loc, systemImage: "mappin").font(.hush(.caption)).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             Spacer()
             Text(event.calendar.title)
-                .font(.caption2)
+                .font(.hush(.caption2))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }

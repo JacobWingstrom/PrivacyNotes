@@ -222,7 +222,7 @@ struct ExportView: View {
                 Label {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(title).foregroundStyle(.primary)
-                        Text(format).font(.caption).foregroundStyle(.secondary)
+                        Text(format).font(.hush(.caption)).foregroundStyle(.secondary)
                     }
                 } icon: { Image(systemName: symbol) }
                 Spacer()

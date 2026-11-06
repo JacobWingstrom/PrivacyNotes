@@ -65,8 +65,8 @@ struct JournalView: View {
 
     private func stat(_ value: String, _ label: String, _ symbol: String) -> some View {
         VStack(spacing: 4) {
-            Label(value, systemImage: symbol).font(.title3.bold()).foregroundStyle(.tint)
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Label(value, systemImage: symbol).font(.hush(.title3).bold()).foregroundStyle(.tint)
+            Text(label).font(.hush(.caption)).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
     }
@@ -101,19 +101,19 @@ struct JournalRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(spacing: 0) {
-                Text(entry.date.formatted(.dateTime.day())).font(.title2.bold())
-                Text(entry.date.formatted(.dateTime.weekday(.abbreviated))).font(.caption2).foregroundStyle(.secondary)
+                Text(entry.date.formatted(.dateTime.day())).font(.hush(.title2).bold())
+                Text(entry.date.formatted(.dateTime.weekday(.abbreviated))).font(.hush(.caption2)).foregroundStyle(.secondary)
             }
             .frame(width: 40)
             VStack(alignment: .leading, spacing: 3) {
                 HStack {
                     Text(entry.title.isEmpty ? (entry.body.split(separator: "\n").first.map(String.init) ?? "Untitled") : entry.title)
-                        .font(.headline).lineLimit(1)
+                        .font(.hush(.headline)).lineLimit(1)
                     Spacer()
                     Text(entry.mood.emoji)
                 }
                 if !compact && !entry.body.isEmpty && !entry.title.isEmpty {
-                    Text(entry.body).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                    Text(entry.body).font(.hush(.subheadline)).foregroundStyle(.secondary).lineLimit(2)
                 }
             }
         }
@@ -143,7 +143,7 @@ struct JournalEditorView: View {
                         entry.mood = entry.mood == mood ? .none : mood
                     } label: {
                         Text(mood.emoji)
-                            .font(.title2)
+                            .font(.hush(.title2))
                             .padding(6)
                             .background(entry.mood == mood ? AnyShapeStyle(.tint.opacity(0.25)) : AnyShapeStyle(.clear), in: Circle())
                             .opacity(entry.mood == .none || entry.mood == mood ? 1 : 0.45)
@@ -153,7 +153,7 @@ struct JournalEditorView: View {
                 }
             }
             TextField("Title", text: $entry.title)
-                .font(.title2.bold())
+                .font(.hush(.title2).bold())
                 .focused($focus, equals: .title)
                 .submitLabel(.next)
                 .onSubmit { focus = .body }

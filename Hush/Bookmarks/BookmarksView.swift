@@ -120,18 +120,18 @@ struct BookmarkRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Text(String(bookmark.host.replacingOccurrences(of: "www.", with: "").prefix(1)).uppercased())
-                .font(.headline)
+                .font(.hush(.headline))
                 .frame(width: 36, height: 36)
                 .background(.tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
                 .foregroundStyle(.tint)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Text(bookmark.displayTitle).lineLimit(1)
-                    if bookmark.isFavorite { Image(systemName: "star.fill").font(.caption2).foregroundStyle(.yellow) }
+                    if bookmark.isFavorite { Image(systemName: "star.fill").font(.hush(.caption2)).foregroundStyle(.yellow) }
                 }
-                Text(bookmark.urlString).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(bookmark.urlString).font(.hush(.caption)).foregroundStyle(.secondary).lineLimit(1)
                 if !bookmark.tags.isEmpty {
-                    Text(bookmark.tags.map { "#\($0)" }.joined(separator: " ")).font(.caption2).foregroundStyle(.tertiary)
+                    Text(bookmark.tags.map { "#\($0)" }.joined(separator: " ")).font(.hush(.caption2)).foregroundStyle(.tertiary)
                 }
             }
             Spacer(minLength: 0)

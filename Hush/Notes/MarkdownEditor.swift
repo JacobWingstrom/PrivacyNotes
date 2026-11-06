@@ -16,6 +16,31 @@ enum MarkdownStyler {
         var secondary: UIColor = .secondaryLabel
         var accent: UIColor = .systemBlue
         var codeBackground: UIColor = UIColor.secondarySystemFill
+        var heading: UIColor? = nil
+        var bold: UIColor? = nil
+        var italic: UIColor? = nil
+        var code: UIColor? = nil
+        var link: UIColor? = nil
+        var list: UIColor? = nil
+
+        init(text: UIColor = .label, dim: UIColor = .tertiaryLabel, secondary: UIColor = .secondaryLabel,
+             accent: UIColor = .systemBlue, codeBackground: UIColor = .secondarySystemFill) {
+            self.text = text; self.dim = dim; self.secondary = secondary; self.accent = accent; self.codeBackground = codeBackground
+        }
+
+        /// Colors from the current theme, like an editor's syntax highlighting.
+        init(palette: Palette, accent: UIColor) {
+            self.init(text: palette.text.map(UIColor.init) ?? .label,
+                      dim: (palette.secondaryText.map(UIColor.init) ?? .secondaryLabel).withAlphaComponent(0.6),
+                      secondary: palette.secondaryText.map(UIColor.init) ?? .secondaryLabel,
+                      accent: accent,
+                      codeBackground: UIColor(palette.field))
+            if let s = palette.syntax {
+                heading = UIColor(Color(hex: s.heading)); bold = UIColor(Color(hex: s.bold))
+                italic = UIColor(Color(hex: s.italic)); code = UIColor(Color(hex: s.code))
+                link = UIColor(Color(hex: s.link)); list = UIColor(Color(hex: s.list))
+            }
+        }
     }
 
     private static func regex(_ p: String) -> NSRegularExpression {
@@ -59,14 +84,17 @@ enum MarkdownStyler {
             let level = m.range(at: 1).length
             let scale: CGFloat = [1.6, 1.35, 1.2, 1.1, 1.05, 1.0][min(level, 6) - 1]
             storage.addAttribute(.font, value: font(base, bold: true, scale: scale), range: m.range)
+            if let c = colors.heading { storage.addAttribute(.foregroundColor, value: c, range: m.range) }
             storage.addAttribute(.foregroundColor, value: colors.dim, range: m.range(at: 1))
         }
         each(bold) { m in
             storage.addAttribute(.font, value: font(base, bold: true), range: m.range)
+            if let c = colors.bold { storage.addAttribute(.foregroundColor, value: c, range: m.range) }
             dimMarkers(storage, m.range, marker: m.range(at: 1).length, colors)
         }
         each(italic) { m in
             storage.addAttribute(.font, value: font(base, italic: true), range: m.range)
+            if let c = colors.italic { storage.addAttribute(.foregroundColor, value: c, range: m.range) }
             dimMarkers(storage, m.range, marker: 1, colors)
         }
         each(strike) { m in
@@ -80,7 +108,7 @@ enum MarkdownStyler {
             storage.addAttribute(.foregroundColor, value: colors.accent, range: NSRange(location: m.range.location, length: 1))
         }
         each(rule) { m in storage.addAttribute(.foregroundColor, value: colors.dim, range: m.range) }
-        each(bullet) { m in storage.addAttribute(.foregroundColor, value: colors.accent, range: m.range(at: 2)) }
+        each(bullet) { m in storage.addAttribute(.foregroundColor, value: colors.list ?? colors.accent, range: m.range(at: 2)) }
         each(checkbox) { m in
             let boxRange = NSRange(location: m.range(at: 2).location - 1, length: 3)
             let checked = text.substring(with: m.range(at: 2)).lowercased() == "x"
@@ -91,20 +119,20 @@ enum MarkdownStyler {
             }
         }
         each(inlineCode) { m in
-            storage.addAttributes([.font: mono, .backgroundColor: colors.codeBackground], range: m.range)
+            storage.addAttributes([.font: mono, .backgroundColor: colors.codeBackground, .foregroundColor: colors.code ?? colors.text], range: m.range)
         }
         each(fence) { m in
-            storage.addAttributes([.font: mono, .backgroundColor: colors.codeBackground, .foregroundColor: colors.text], range: m.range)
+            storage.addAttributes([.font: mono, .backgroundColor: colors.codeBackground, .foregroundColor: colors.code ?? colors.text], range: m.range)
         }
         each(noteLink) { m in
             let name = text.substring(with: m.range(at: 1))
-            storage.addAttributes([.foregroundColor: colors.accent, .underlineStyle: NSUnderlineStyle.single.rawValue, .hushNoteLink: name], range: m.range(at: 1))
+            storage.addAttributes([.foregroundColor: colors.link ?? colors.accent, .underlineStyle: NSUnderlineStyle.single.rawValue, .hushNoteLink: name], range: m.range(at: 1))
             storage.addAttribute(.foregroundColor, value: colors.dim, range: NSRange(location: m.range.location, length: 2))
             storage.addAttribute(.foregroundColor, value: colors.dim, range: NSRange(location: m.range.upperBound - 2, length: 2))
         }
         each(webLink) { m in
             let url = text.substring(with: m.range(at: 2))
-            storage.addAttributes([.foregroundColor: colors.accent, .underlineStyle: NSUnderlineStyle.single.rawValue, .hushWebLink: url], range: m.range(at: 1))
+            storage.addAttributes([.foregroundColor: colors.link ?? colors.accent, .underlineStyle: NSUnderlineStyle.single.rawValue, .hushWebLink: url], range: m.range(at: 1))
             storage.addAttribute(.foregroundColor, value: colors.dim, range: NSRange(location: m.range(at: 1).upperBound, length: m.range.upperBound - m.range(at: 1).upperBound))
         }
         storage.endEditing()
@@ -137,6 +165,7 @@ struct MarkdownEditor: UIViewRepresentable {
     var fontScale: CGFloat = 1
     var accent: UIColor = .systemBlue
     var horizontalInset: CGFloat = 0
+    var palette: Palette = .charcoal
     var focusOnAppear = false
     var onOpenNoteLink: (String) -> Void = { _ in }
     var onLinkPicker: () -> Void = {}
@@ -189,23 +218,16 @@ struct MarkdownEditor: UIViewRepresentable {
 
         var baseFont: UIFont {
             let body = UIFont.preferredFont(forTextStyle: .body)
-            let design: UIFontDescriptor.SystemDesign = switch parent.fontDesign {
-            case .system: .default
-            case .rounded: .rounded
-            case .serif: .serif
-            case .monospaced: .monospaced
-            }
-            let desc = body.fontDescriptor.withDesign(design) ?? body.fontDescriptor
-            return UIFont(descriptor: desc, size: body.pointSize * parent.fontScale)
+            return parent.fontDesign.uiFont(size: body.pointSize * parent.fontScale)
         }
 
         func restyle(_ tv: UITextView) {
             textView = tv
             let sel = tv.selectedRange
-            var colors = MarkdownStyler.Colors()
-            colors.accent = parent.accent
+            let colors = MarkdownStyler.Colors(palette: parent.palette, accent: parent.accent)
             MarkdownStyler.style(tv.textStorage, base: baseFont, colors: colors)
-            tv.typingAttributes = [.font: baseFont, .foregroundColor: UIColor.label]
+            tv.typingAttributes = [.font: baseFont, .foregroundColor: colors.text]
+            tv.tintColor = parent.accent
             tv.selectedRange = sel
         }
 

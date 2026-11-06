@@ -40,6 +40,7 @@ struct SettingsView: View {
             ]),
             ("About", [
                 Item(id: "Privacy", symbol: "hand.raised", keywords: "data network offline") { AnyView(PrivacyInfo()) },
+                Item(id: "Acknowledgements", symbol: "text.book.closed", keywords: "fonts licenses credits") { AnyView(Acknowledgements()) },
             ]),
         ]
     }
@@ -57,10 +58,10 @@ struct SettingsView: View {
                                 NavigationLink { item.destination() } label: {
                                     HStack(spacing: 16) {
                                         Image(systemName: item.symbol)
-                                            .font(.title3)
+                                            .font(.hush(.title3))
                                             .foregroundStyle(.tint)
                                             .frame(width: 28)
-                                        Text(item.id).font(.body)
+                                        Text(item.id).font(.hush(.body))
                                     }
                                     .padding(.vertical, 8)
                                 }
@@ -69,7 +70,7 @@ struct SettingsView: View {
                             }
                         } header: {
                             Text(title.uppercased())
-                                .font(.footnote.weight(.semibold))
+                                .font(.hush(.footnote).weight(.semibold))
                                 .tracking(0.8)
                                 .foregroundStyle(.tint)
                         }
@@ -77,7 +78,7 @@ struct SettingsView: View {
                 }
                 Section {
                     LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–")
-                        .font(.footnote)
+                        .font(.hush(.footnote))
                         .foregroundStyle(.secondary)
                         .listRowBackground(Color.clear)
                 }
@@ -103,16 +104,20 @@ struct SettingsView: View {
 
 struct DesignSettings: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         @Bindable var s = settings
         HushForm {
             Section("Theme") {
-                Picker("Theme", selection: $s.theme) {
-                    ForEach(ThemeMode.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.inline)
-                .labelsHidden()
+                themeGrid(ThemeMode.basics)
+            }
+            Section {
+                themeGrid(ThemeMode.editorThemes)
+            } header: {
+                Text("Editor Themes")
+            } footer: {
+                Text("Color themes inspired by popular code editors. Headings, bold, code and links in notes are colored like syntax highlighting. Not affiliated with the original themes.")
             }
             Section("Accent Color") {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
@@ -136,19 +141,123 @@ struct DesignSettings: View {
                     set: { settings.accentHex = $0.hexString }
                 ), supportsOpacity: false)
             }
-            Section("Text") {
-                Picker("Font", selection: $s.fontStyle) {
-                    ForEach(FontStyle.allCases) { Text($0.label).fontDesign($0.design).tag($0) }
-                }
-                Picker("Text Size", selection: $s.textSize) {
-                    ForEach(TextSize.allCases) { Text($0.label).tag($0) }
+            Section("Font") {
+                ForEach(FontStyle.builtIn + FontStyle.bundled) { f in
+                    Button { settings.fontStyle = f } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(f.label).font(sample(f, 17)).foregroundStyle(.primary)
+                                Text(f.note).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text("Aa 123 {}").font(sample(f, 15)).foregroundStyle(.secondary)
+                            if settings.fontStyle == f {
+                                Image(systemName: "checkmark").foregroundStyle(.tint).padding(.leading, 6)
+                            }
+                        }
+                    }
+                    .accessibilityAddTraits(settings.fontStyle == f ? .isSelected : [])
                 }
             }
             Section {
+                Picker("Text Size", selection: $s.textSize) {
+                    ForEach(TextSize.allCases) { Text($0.label).tag($0) }
+                }
                 NavigationLink("App Icon") { AppIconPicker() }
             }
         }
         .navigationTitle("Design")
+    }
+
+    private func sample(_ f: FontStyle, _ size: CGFloat) -> Font {
+        if let family = f.family { return .custom(family, fixedSize: size) }
+        return .system(size: size, design: f.design)
+    }
+
+    private func themeGrid(_ themes: [ThemeMode]) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 98), spacing: 12)], spacing: 12) {
+            ForEach(themes) { t in
+                ThemeCard(theme: t, palette: Palette.forTheme(t, scheme: scheme), selected: settings.theme == t)
+                    .onTapGesture { withAnimation(.snappy) { settings.theme = t } }
+            }
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+/// A tiny preview of a theme: background, a heading, text lines and an accent dot.
+private struct ThemeCard: View {
+    let theme: ThemeMode
+    let palette: Palette
+    let selected: Bool
+
+    var body: some View {
+        let text = palette.text ?? (palette.isDark ? .white : .black)
+        let accent = palette.accentHex.map { Color(hex: $0) } ?? Color.accentColor
+        let syntax = palette.syntax
+        VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 5) {
+                Capsule().fill(syntax.map { Color(hex: $0.heading) } ?? text).frame(width: 46, height: 6)
+                Capsule().fill(text.opacity(0.75)).frame(width: 64, height: 4)
+                HStack(spacing: 4) {
+                    Capsule().fill(syntax.map { Color(hex: $0.code) } ?? text.opacity(0.5)).frame(width: 26, height: 4)
+                    Capsule().fill(syntax.map { Color(hex: $0.link) } ?? accent).frame(width: 22, height: 4)
+                }
+                Capsule().fill(text.opacity(0.45)).frame(width: 52, height: 4)
+                HStack {
+                    Spacer()
+                    Circle().fill(accent).frame(width: 12, height: 12)
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, minHeight: 74, alignment: .topLeading)
+            .background(palette.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(palette.border), lineWidth: selected ? 2.5 : 1))
+            Text(theme.label).font(.caption).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(theme.label) theme")
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+struct Acknowledgements: View {
+    private let fonts: [(String, String)] = [
+        ("JetBrains Mono", "JetBrainsMono"), ("Fira Code", "FiraCode"), ("Source Code Pro", "SourceCodePro"),
+        ("IBM Plex Mono", "IBMPlexMono"), ("Space Mono", "SpaceMono"), ("Inter", "Inter"),
+        ("Atkinson Hyperlegible", "AtkinsonHyperlegible"), ("Lora", "Lora"),
+    ]
+
+    var body: some View {
+        HushForm {
+            Section {
+                ForEach(fonts, id: \.0) { name, file in
+                    NavigationLink(name) { LicenseText(title: name, file: "OFL-\(file)") }
+                }
+            } header: {
+                Text("Fonts")
+            } footer: {
+                Text("These fonts are used under the SIL Open Font License 1.1.")
+            }
+        }
+        .navigationTitle("Acknowledgements")
+    }
+}
+
+private struct LicenseText: View {
+    let title: String
+    let file: String
+    var body: some View {
+        ScrollView {
+            Text((Bundle.main.url(forResource: file, withExtension: "txt").flatMap { try? String(contentsOf: $0) }) ?? "License not found.")
+                .font(.footnote.monospaced())
+                .textSelection(.enabled)
+                .padding()
+        }
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -449,7 +558,7 @@ struct AppIconPicker: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                                 .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
                                     .stroke(current == name ? AnyShapeStyle(.tint) : AnyShapeStyle(.quaternary), lineWidth: current == name ? 3 : 1))
-                            Text(label).font(.caption)
+                            Text(label).font(.hush(.caption))
                         }
                     }
                     .buttonStyle(.plain)
@@ -501,7 +610,7 @@ struct SpacesSettings: View {
             }
             Section {
                 Text("Deleting a space doesn't delete anything: its items show up under All Spaces and can be moved. The Personal space can't be removed.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.hush(.footnote)).foregroundStyle(.secondary)
             }
         }
         .navigationTitle("Spaces")

@@ -150,13 +150,13 @@ struct AttachmentTile: View {
                 if let thumb {
                     Image(uiImage: thumb).resizable().scaledToFill()
                 } else {
-                    Image(systemName: FileIcon.symbol(for: file.typeIdentifier)).font(.title2).foregroundStyle(.tint)
+                    Image(systemName: FileIcon.symbol(for: file.typeIdentifier)).font(.hush(.title2)).foregroundStyle(.tint)
                 }
             }
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(palette.border))
-            Text(file.name).font(.caption2).lineLimit(1).frame(width: 64)
+            Text(file.name).font(.hush(.caption2)).lineLimit(1).frame(width: 64)
         }
         .task(id: file.id) {
             guard UTType(file.typeIdentifier)?.conforms(to: .image) == true,

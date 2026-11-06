@@ -169,7 +169,7 @@ struct TaskRow: View {
                     Text(String(repeating: "!", count: task.priority.rawValue)).bold().foregroundStyle(c)
                 }
             }
-            .font(.caption)
+            .font(.hush(.caption))
             .foregroundStyle(.secondary)
             .labelStyle(.titleAndIcon)
         }
@@ -189,7 +189,7 @@ struct TaskEditorView: View {
         HushForm {
             Section {
                 TextField("Title", text: $task.title, axis: .vertical)
-                    .font(.headline)
+                    .font(.hush(.headline))
                     .focused($titleFocused)
                 TextField("Notes", text: $task.notes, axis: .vertical)
                     .lineLimit(2...10)

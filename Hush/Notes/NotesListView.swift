@@ -211,20 +211,20 @@ struct NoteRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             if !note.emoji.isEmpty {
-                Text(note.emoji).font(.title3)
+                Text(note.emoji).font(.hush(.title3))
             } else if let c = note.color {
                 Circle().fill(c).frame(width: 10, height: 10).padding(.top, 6)
             }
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text(note.displayTitle).font(.headline).lineLimit(1)
+                    Text(note.displayTitle).font(.hush(.headline)).lineLimit(1)
                     if note.isPinned {
-                        Image(systemName: "pin.fill").font(.caption2).foregroundStyle(.orange)
+                        Image(systemName: "pin.fill").font(.hush(.caption2)).foregroundStyle(.orange)
                     }
                 }
                 if !compact, previewLines > 0, !note.plainPreview.isEmpty {
                     Text(note.plainPreview)
-                        .font(.subheadline)
+                        .font(.hush(.subheadline))
                         .foregroundStyle(.secondary)
                         .lineLimit(previewLines)
                 }
@@ -235,7 +235,7 @@ struct NoteRow: View {
                             Text(note.tags.map { "#\($0)" }.joined(separator: " ")).lineLimit(1)
                         }
                     }
-                    .font(.caption)
+                    .font(.hush(.caption))
                     .foregroundStyle(.tertiary)
                 }
             }
@@ -251,7 +251,7 @@ struct TagChip: View {
     var body: some View {
         Button(action: action) {
             Text(text)
-                .font(.subheadline.weight(.medium))
+                .font(.hush(.subheadline).weight(.medium))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear), in: Capsule())

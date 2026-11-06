@@ -23,9 +23,9 @@ struct HabitsView: View {
             if !active.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Today").font(.headline)
+                        Text("Today").font(.hush(.headline))
                         Spacer()
-                        Text("\(doneCount) of \(due.count) done").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                        Text("\(doneCount) of \(due.count) done").font(.hush(.subheadline)).foregroundStyle(.secondary).monospacedDigit()
                     }
                     ProgressView(value: due.isEmpty ? 0 : Double(doneCount), total: Double(max(due.count, 1)))
                         .tint(settings.accentColor)
@@ -61,7 +61,7 @@ struct HabitsView: View {
         .hushList()
         .safeAreaInset(edge: .top, spacing: 0) {
             HStack {
-                Text(today.formatted(.dateTime.weekday(.wide).month(.wide).day())).font(.subheadline.weight(.medium))
+                Text(today.formatted(.dateTime.weekday(.wide).month(.wide).day())).font(.hush(.subheadline).weight(.medium))
                 Spacer()
                 FilterButton(active: todayOnly || showArchived) {
                     Toggle("Only habits due today", isOn: $todayOnly)
@@ -99,16 +99,16 @@ struct HabitRow: View {
         let tint = habit.color ?? Color.accentColor
         HStack(spacing: 12) {
             Text(habit.emoji.isEmpty ? "✅" : habit.emoji)
-                .font(.title2)
+                .font(.hush(.title2))
                 .frame(width: 44, height: 44)
                 .background(tint.opacity(0.18), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 8) {
-                    Text(habit.name.isEmpty ? "New Habit" : habit.name).font(.headline).lineLimit(1)
+                    Text(habit.name.isEmpty ? "New Habit" : habit.name).font(.hush(.headline)).lineLimit(1)
                     if habit.streak > 0 {
-                        Label("\(habit.streak)", systemImage: "flame.fill").font(.caption.bold()).foregroundStyle(.orange)
+                        Label("\(habit.streak)", systemImage: "flame.fill").font(.hush(.caption).bold()).foregroundStyle(.orange)
                     }
-                    if habit.remind { Image(systemName: "bell").font(.caption2).foregroundStyle(.secondary) }
+                    if habit.remind { Image(systemName: "bell").font(.hush(.caption2)).foregroundStyle(.secondary) }
                 }
                 WeekStrip(habit: habit, tint: tint)
             }
@@ -195,8 +195,8 @@ struct HabitDetailView: View {
                 HStack(spacing: 14) {
                     Text(habit.emoji).font(.system(size: 44))
                     VStack(alignment: .leading) {
-                        Text(habit.name).font(.title2.bold())
-                        Text(scheduleText).font(.subheadline).foregroundStyle(.secondary)
+                        Text(habit.name).font(.hush(.title2).bold())
+                        Text(scheduleText).font(.hush(.subheadline)).foregroundStyle(.secondary)
                     }
                     Spacer()
                     HabitCheck(habit: habit, date: .now, tint: tint, size: 54)
@@ -233,8 +233,8 @@ struct HabitDetailView: View {
     private func stat(_ value: String, _ label: String, _ symbol: String, _ color: Color) -> some View {
         VStack(spacing: 4) {
             Image(systemName: symbol).foregroundStyle(color)
-            Text(value).font(.title3.bold()).monospacedDigit()
-            Text(label).font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            Text(value).font(.hush(.title3).bold()).monospacedDigit()
+            Text(label).font(.hush(.caption2)).foregroundStyle(.secondary).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
@@ -260,7 +260,7 @@ struct HabitMonth: View {
         let ordered = Array(symbols[start...] + symbols[..<start])
         VStack(spacing: 10) {
             HStack {
-                Text(month.formatted(.dateTime.month(.wide).year())).font(.headline)
+                Text(month.formatted(.dateTime.month(.wide).year())).font(.hush(.headline))
                 Spacer()
                 Button { month = cal.date(byAdding: .month, value: -1, to: month) ?? month } label: { Image(systemName: "chevron.left") }
                 Button { month = cal.date(byAdding: .month, value: 1, to: month) ?? month } label: { Image(systemName: "chevron.right") }
@@ -269,7 +269,7 @@ struct HabitMonth: View {
             .buttonStyle(.borderless)
             HStack(spacing: 0) {
                 ForEach(ordered.indices, id: \.self) { i in
-                    Text(ordered[i]).font(.caption2).foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                    Text(ordered[i]).font(.hush(.caption2)).foregroundStyle(.secondary).frame(maxWidth: .infinity)
                 }
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 6) {
@@ -279,7 +279,7 @@ struct HabitMonth: View {
                         let done = habit.isDone(on: d)
                         let partial = !done && habit.count(on: d) > 0
                         Text(d.formatted(.dateTime.day()))
-                            .font(.caption.weight(.medium))
+                            .font(.hush(.caption).weight(.medium))
                             .frame(maxWidth: .infinity, minHeight: 34)
                             .foregroundStyle(done ? AnyShapeStyle(.white) : AnyShapeStyle(future ? .tertiary : .primary))
                             .background(done ? AnyShapeStyle(tint) : (partial ? AnyShapeStyle(tint.opacity(0.35)) : AnyShapeStyle(.quaternary.opacity(habit.isScheduled(on: d) ? 1 : 0.3))),
@@ -304,11 +304,11 @@ struct HabitEditor: View {
     var body: some View {
         HushForm {
             Section {
-                TextField("Habit name (e.g. Drink water)", text: $habit.name).font(.headline)
+                TextField("Habit name (e.g. Drink water)", text: $habit.name).font(.hush(.headline))
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(Self.emojis, id: \.self) { e in
-                            Text(e).font(.title2)
+                            Text(e).font(.hush(.title2))
                                 .frame(width: 42, height: 42)
                                 .background(habit.emoji == e ? AnyShapeStyle(.tint.opacity(0.25)) : AnyShapeStyle(.clear), in: RoundedRectangle(cornerRadius: 10))
                                 .onTapGesture { habit.emoji = e }
@@ -327,7 +327,7 @@ struct HabitEditor: View {
                         ForEach(1...7, id: \.self) { d in
                             let on = habit.days.isEmpty || habit.days.contains(d)
                             Text(Calendar.current.veryShortWeekdaySymbols[d - 1])
-                                .font(.subheadline.weight(.semibold))
+                                .font(.hush(.subheadline).weight(.semibold))
                                 .frame(maxWidth: .infinity, minHeight: 36)
                                 .background(on ? AnyShapeStyle(.tint) : AnyShapeStyle(.quaternary), in: Circle())
                                 .foregroundStyle(on ? .white : .primary)

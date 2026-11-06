@@ -26,9 +26,9 @@ struct DrawingsView: View {
                                 .frame(maxWidth: .infinity)
                                 .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                                 .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(palette.border))
-                            Text(drawing.title).font(.subheadline.weight(.medium)).lineLimit(1)
+                            Text(drawing.title).font(.hush(.subheadline).weight(.medium)).lineLimit(1)
                             Text(drawing.updatedAt, format: .relative(presentation: .named))
-                                .font(.caption).foregroundStyle(.secondary)
+                                .font(.hush(.caption)).foregroundStyle(.secondary)
                         }
                     }
                     .buttonStyle(.plain)
@@ -73,7 +73,7 @@ struct DrawingThumbnail: View {
             if let image {
                 Image(uiImage: image).resizable().scaledToFit().padding(10)
             } else {
-                Image(systemName: "scribble").font(.largeTitle).foregroundStyle(.gray.opacity(0.5))
+                Image(systemName: "scribble").font(.hush(.largeTitle)).foregroundStyle(.gray.opacity(0.5))
             }
         }
         .task(id: data) { image = Self.render(data) }

@@ -68,10 +68,10 @@ struct FilesView: View {
                     Text("\(files.count) file\(files.count == 1 ? "" : "s") · \(ByteCountFormatter.string(fromByteCount: Int64(files.reduce(0) { $0 + $1.size }), countStyle: .file))")
                         .monospacedDigit()
                 }
-                .font(.subheadline)
+                .font(.hush(.subheadline))
                 .foregroundStyle(.secondary)
                 Text("No size limits — files are only limited by your iPhone's free space.")
-                    .font(.caption).foregroundStyle(.tertiary)
+                    .font(.hush(.caption)).foregroundStyle(.tertiary)
             }
             .plainRow(top: 12, bottom: 6)
             FilterChips(options: [(nil, "All")] + FileKind.allCases.map { ($0, $0.label) }, selection: $kind)
@@ -166,17 +166,17 @@ private struct FileRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: symbol)
-                .font(.title3)
+                .font(.hush(.title3))
                 .frame(width: 36, height: 36)
                 .background(.tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
                 .foregroundStyle(.tint)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Text(file.name).lineLimit(1)
-                    if file.noteID != nil { Image(systemName: "paperclip").font(.caption2).foregroundStyle(.secondary) }
+                    if file.noteID != nil { Image(systemName: "paperclip").font(.hush(.caption2)).foregroundStyle(.secondary) }
                 }
                 Text("\(ByteCountFormatter.string(fromByteCount: Int64(file.size), countStyle: .file)) · \(file.createdAt.formatted(date: .abbreviated, time: .omitted))")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.hush(.caption)).foregroundStyle(.secondary)
             }
         }
     }

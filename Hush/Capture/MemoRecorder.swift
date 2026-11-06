@@ -109,13 +109,13 @@ struct MemoRecorderView: View {
                 }
                 .accessibilityLabel(recorder.isRecording ? "Stop and save" : "Start recording")
                 Text(recorder.isRecording ? "Tap to stop and save" : "Tap to record")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.hush(.footnote)).foregroundStyle(.secondary)
                 if let e = recorder.errorMessage {
-                    Text(e).font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center).padding(.horizontal)
+                    Text(e).font(.hush(.footnote)).foregroundStyle(.red).multilineTextAlignment(.center).padding(.horizontal)
                 }
                 Spacer()
                 Text("Memos are encrypted and stay on this iPhone.")
-                    .font(.caption).foregroundStyle(.tertiary)
+                    .font(.hush(.caption)).foregroundStyle(.tertiary)
             }
             .frame(maxWidth: .infinity)
             .padding()

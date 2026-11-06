@@ -38,9 +38,15 @@ final class AppSettings {
     static let lockEnabledKey = K.lock
 
     // Appearance
-    var theme: ThemeMode { didSet { store.set(theme.rawValue, forKey: K.theme) } }
+    var theme: ThemeMode {
+        didSet {
+            store.set(theme.rawValue, forKey: K.theme)
+            // Editor themes come with their own accent color.
+            if let hex = Palette.forTheme(theme, scheme: .dark).accentHex { accentHex = hex }
+        }
+    }
     var accentHex: String { didSet { store.set(accentHex, forKey: K.accent) } }
-    var fontStyle: FontStyle { didSet { store.set(fontStyle.rawValue, forKey: K.font) } }
+    var fontStyle: FontStyle { didSet { store.set(fontStyle.rawValue, forKey: K.font); FontStyle.current = fontStyle } }
     var textSize: TextSize { didSet { store.set(textSize.rawValue, forKey: K.size) } }
     var compactLists: Bool { didSet { store.set(compactLists, forKey: K.compact) } }
     var previewLines: Int { didSet { store.set(previewLines, forKey: K.preview) } }
@@ -86,6 +92,7 @@ final class AppSettings {
         theme = ThemeMode(rawValue: d.string(forKey: K.theme) ?? "") ?? .charcoal
         accentHex = d.string(forKey: K.accent) ?? AccentPreset.all[0].hex
         fontStyle = FontStyle(rawValue: d.string(forKey: K.font) ?? "") ?? .system
+        FontStyle.current = fontStyle
         textSize = TextSize(rawValue: d.string(forKey: K.size) ?? "") ?? .standard
         compactLists = d.object(forKey: K.compact) as? Bool ?? false
         previewLines = d.object(forKey: K.preview) as? Int ?? 2
@@ -131,15 +138,7 @@ final class AppSettings {
         AppGroup.defaults.set(accentHex, forKey: "accentHex")
     }
 
-    func palette(for scheme: ColorScheme) -> Palette {
-        switch theme {
-        case .system: scheme == .dark ? .charcoal : .light
-        case .charcoal: .charcoal
-        case .dark: .dark
-        case .black: .black
-        case .light: .light
-        }
-    }
+    func palette(for scheme: ColorScheme) -> Palette { Palette.forTheme(theme, scheme: scheme) }
 
     var visibleSections: [AppSection] {
         let v = sectionOrder.filter { !hiddenSections.contains($0) }

@@ -57,7 +57,7 @@ struct CalendarView: View {
                         .hushRow()
                 } header: {
                     HStack(spacing: 8) {
-                        if cal.isDateInToday(selected) { Text("Today").font(.subheadline.bold()).foregroundStyle(.tint) }
+                        if cal.isDateInToday(selected) { Text("Today").font(.hush(.subheadline).bold()).foregroundStyle(.tint) }
                         ListHeader(title: selected.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
                     }
                 }
@@ -165,7 +165,7 @@ struct MonthGrid: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack {
-                Text((collapsed ? selected : month).formatted(.dateTime.month(.abbreviated).year())).font(.headline)
+                Text((collapsed ? selected : month).formatted(.dateTime.month(.abbreviated).year())).font(.hush(.headline))
                 Spacer()
                 Button { shift(-1) } label: { Image(systemName: "chevron.left") }
                     .accessibilityLabel("Previous month")
@@ -179,7 +179,7 @@ struct MonthGrid: View {
             let symbols = weekdaySymbols
             HStack(spacing: 0) {
                 ForEach(symbols.indices, id: \.self) { i in
-                    Text(symbols[i]).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                    Text(symbols[i]).font(.hush(.caption2).weight(.semibold)).foregroundStyle(.secondary).frame(maxWidth: .infinity)
                 }
             }
 
@@ -249,7 +249,7 @@ private struct DayCell: View {
     var body: some View {
         VStack(spacing: 3) {
             Text(day.formatted(.dateTime.day()))
-                .font(.callout.weight(isToday || isSelected ? .bold : .regular))
+                .font(.hush(.callout).weight(isToday || isSelected ? .bold : .regular))
                 .foregroundStyle(isSelected ? AnyShapeStyle(.white) : (isToday ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary)))
                 .frame(width: 32, height: 32)
                 .background {
@@ -320,13 +320,13 @@ struct EventRow: View {
                         Text("\(event.start.formatted(date: .omitted, time: .shortened)) – \(event.end.formatted(date: .omitted, time: .shortened))")
                     }
                 }
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.hush(.caption)).foregroundStyle(.secondary)
                 if !event.location.isEmpty {
-                    Label(event.location, systemImage: "mappin").font(.caption).foregroundStyle(.secondary)
+                    Label(event.location, systemImage: "mappin").font(.hush(.caption)).foregroundStyle(.secondary)
                 }
             }
             Spacer()
-            if event.alertMinutes >= 0 { Image(systemName: "bell").font(.caption).foregroundStyle(.secondary) }
+            if event.alertMinutes >= 0 { Image(systemName: "bell").font(.hush(.caption)).foregroundStyle(.secondary) }
         }
     }
 }
@@ -347,7 +347,7 @@ struct EventEditorView: View {
     var body: some View {
         HushForm {
             Section {
-                TextField("Title", text: $event.title).font(.headline).focused($titleFocused)
+                TextField("Title", text: $event.title).font(.hush(.headline)).focused($titleFocused)
                 TextField("Location", text: $event.location)
             }
             Section {

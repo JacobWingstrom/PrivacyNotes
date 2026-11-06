@@ -117,12 +117,12 @@ struct FolderRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "folder.fill")
-                .font(.title3)
+                .font(.hush(.title3))
                 .foregroundStyle(.tint)
                 .frame(width: 30)
-            Text(folder.emoji.isEmpty ? folder.name : "\(folder.emoji) \(folder.name)").font(.headline)
+            Text(folder.emoji.isEmpty ? folder.name : "\(folder.emoji) \(folder.name)").font(.hush(.headline))
             Spacer()
-            Text("\(count)").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+            Text("\(count)").font(.hush(.subheadline)).foregroundStyle(.secondary).monospacedDigit()
         }
         .padding(.vertical, 6)
     }

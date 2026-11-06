@@ -21,12 +21,12 @@ struct PasscodePrompt: View {
             Image(systemName: symbol)
                 .font(.system(size: 44, weight: .semibold))
                 .foregroundStyle(.tint)
-            Text(title).font(.title2.bold())
+            Text(title).font(.hush(.title2).bold())
 
             SecureField("Passcode", text: $code)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
-                .font(.title3)
+                .font(.hush(.title3))
                 .padding(14)
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 14))
                 .frame(maxWidth: 260)
@@ -38,7 +38,7 @@ struct PasscodePrompt: View {
                 .disabled(code.isEmpty)
 
             if !message.isEmpty {
-                Text(message).font(.footnote).foregroundStyle(.red)
+                Text(message).font(.hush(.footnote)).foregroundStyle(.red)
             }
 
             if allowBiometrics && lock.biometryAvailable {
@@ -125,20 +125,20 @@ struct PasscodeSetupView: View {
         NavigationStack {
             VStack(spacing: 18) {
                 Text(confirming ? "Enter it again to confirm" : "Choose a passcode (4–12 digits)")
-                    .font(.headline)
+                    .font(.hush(.headline))
                 SecureField("Passcode", text: confirming ? $second : $first)
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.center)
-                    .font(.title3)
+                    .font(.hush(.title3))
                     .padding(14)
                     .background(.quaternary, in: RoundedRectangle(cornerRadius: 14))
                     .frame(maxWidth: 260)
                     .focused($focused)
-                if !message.isEmpty { Text(message).font(.footnote).foregroundStyle(.red) }
+                if !message.isEmpty { Text(message).font(.hush(.footnote)).foregroundStyle(.red) }
                 Button(confirming ? "Save" : "Next", action: next)
                     .buttonStyle(.borderedProminent)
                 Text("If you forget it, it can't be recovered. Keep a backup.")
-                    .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    .font(.hush(.footnote)).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 Spacer()
             }
             .padding(.top, 40)

@@ -70,7 +70,7 @@ private struct VaultContentView: View {
                             .foregroundStyle(.tint)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(meta.title.isEmpty ? item.kind.label : meta.title).lineLimit(1)
-                            Text(subtitle(item, meta)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            Text(subtitle(item, meta)).font(.hush(.caption)).foregroundStyle(.secondary).lineLimit(1)
                         }
                     }
                 }
@@ -145,7 +145,7 @@ private struct VaultItemEditor: View {
     var body: some View {
         HushForm {
             Section {
-                TextField(item.kind == .login ? "Name (e.g. Bank)" : "Title", text: $meta.title).font(.headline)
+                TextField(item.kind == .login ? "Name (e.g. Bank)" : "Title", text: $meta.title).font(.hush(.headline))
             }
             switch item.kind {
             case .login:
@@ -205,7 +205,7 @@ private struct VaultItemEditor: View {
         .overlay(alignment: .bottom) {
             if copied {
                 Text("Copied — clears from clipboard in 60 s")
-                    .font(.footnote.weight(.medium))
+                    .font(.hush(.footnote).weight(.medium))
                     .padding(.horizontal, 14).padding(.vertical, 8)
                     .background(.thinMaterial, in: Capsule())
                     .padding(.bottom, 20)

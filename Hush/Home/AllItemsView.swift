@@ -73,7 +73,7 @@ struct AllItemsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.title.isEmpty ? "Untitled" : item.title).lineLimit(1)
                             if !settings.compactLists && !item.subtitle.isEmpty {
-                                Text(item.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                Text(item.subtitle).font(.hush(.caption)).foregroundStyle(.secondary).lineLimit(1)
                             }
                         }
                     }

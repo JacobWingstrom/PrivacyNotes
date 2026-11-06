@@ -12,7 +12,7 @@ struct RootView: View {
     var body: some View {
         let palette = settings.palette(for: systemScheme)
         let _ = Appearance.apply(palette)
-        let themeKey = "\(settings.theme.rawValue)-\(systemScheme == .dark ? "d" : "l")"
+        let themeKey = "\(settings.theme.rawValue)-\(systemScheme == .dark ? "d" : "l")-\(settings.fontStyle.rawValue)"
 
         ZStack(alignment: .leading) {
             NavigationStack {
@@ -23,7 +23,7 @@ struct RootView: View {
                             Button {
                                 withAnimation(.snappy(duration: 0.25)) { router.drawerOpen = true }
                             } label: {
-                                Image(systemName: "line.3.horizontal").font(.title3).foregroundStyle(.primary)
+                                Image(systemName: "line.3.horizontal").font(.hush(.title3)).foregroundStyle(.primary)
                             }
                             .accessibilityLabel("Open menu")
                             SectionSwitcher()
@@ -53,7 +53,10 @@ struct RootView: View {
         .environment(\.palette, palette)
         .animation(.easeOut(duration: 0.2), value: lock.isLocked)
         .sheet(isPresented: $showSettings) {
-            SettingsView().environment(\.palette, palette)
+            SettingsView()
+                .environment(\.palette, palette)
+                .foregroundStyle(palette.text.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary))
+                .font(.hush(.body))
         }
         .onAppear {
             if UserDefaults.standard.bool(forKey: "demoOpenDrawer") { router.drawerOpen = true }
@@ -72,6 +75,8 @@ struct RootView: View {
         }
         .preferredColorScheme(settings.theme.colorScheme)
         .tint(settings.accentColor)
+        .foregroundStyle(palette.text.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary))
+        .font(.hush(.body))
         .fontDesign(settings.fontStyle.design)
         .dynamicTypeSize(settings.textSize.dynamicType)
     }
@@ -89,9 +94,9 @@ struct SectionSwitcher: View {
             }
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: router.section.symbol).font(.headline).foregroundStyle(settings.accentColor)
-                Text(settings.title(for: router.section)).font(.title3.bold()).foregroundStyle(.primary)
-                Image(systemName: "chevron.down").font(.caption.weight(.bold)).foregroundStyle(.secondary)
+                Image(systemName: router.section.symbol).font(.hush(.headline)).foregroundStyle(settings.accentColor)
+                Text(settings.title(for: router.section)).font(.hush(.title3).bold()).foregroundStyle(.primary)
+                Image(systemName: "chevron.down").font(.hush(.caption).weight(.bold)).foregroundStyle(.secondary)
             }
         }
         .tint(.primary)
@@ -129,7 +134,7 @@ struct BottomBar: View {
             }
             .accessibilityLabel(settings.lockEnabled ? "Lock now" : "Set up app lock")
             Label("On device", systemImage: "checkmark.shield")
-                .font(.footnote)
+                .font(.hush(.footnote))
                 .foregroundStyle(.secondary)
                 .labelStyle(.titleAndIcon)
                 .accessibilityLabel("Your data is stored only on this device")
@@ -137,7 +142,7 @@ struct BottomBar: View {
             if showsPlus {
                 Button { router.create() } label: {
                     Image(systemName: "plus")
-                        .font(.title2.weight(.semibold))
+                        .font(.hush(.title2).weight(.semibold))
                         .foregroundStyle(.white)
                         .frame(width: 52, height: 52)
                         .background(Circle().fill(.tint))
@@ -146,7 +151,7 @@ struct BottomBar: View {
                 .accessibilityLabel("New")
             }
         }
-        .font(.title3)
+        .font(.hush(.title3))
         .foregroundStyle(.tint)
         .padding(.leading, 22)
         .padding(.trailing, 18)

@@ -566,10 +566,10 @@ struct TemplatePicker: View {
 
     private func row(_ emoji: String, _ name: String, _ sub: String) -> some View {
         HStack(spacing: 12) {
-            Text(emoji.isEmpty ? "📄" : emoji).font(.title3).frame(width: 32)
+            Text(emoji.isEmpty ? "📄" : emoji).font(.hush(.title3)).frame(width: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name).foregroundStyle(.primary)
-                Text(sub.replacingOccurrences(of: "\n", with: " ").trimmed).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(sub.replacingOccurrences(of: "\n", with: " ").trimmed).font(.hush(.caption)).foregroundStyle(.secondary).lineLimit(1)
             }
         }
         .padding(.vertical, 2)

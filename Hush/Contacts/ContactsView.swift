@@ -77,11 +77,11 @@ struct ContactRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(contact.displayName)
                 if !contact.company.isEmpty && contact.displayName != contact.company {
-                    Text(contact.company).font(.caption).foregroundStyle(.secondary)
+                    Text(contact.company).font(.hush(.caption)).foregroundStyle(.secondary)
                 }
             }
             Spacer()
-            if contact.isFavorite { Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow) }
+            if contact.isFavorite { Image(systemName: "star.fill").font(.hush(.caption)).foregroundStyle(.yellow) }
         }
         .padding(.vertical, 4)
     }
@@ -102,7 +102,7 @@ struct ContactEditorView: View {
             Section {
                 VStack(spacing: 10) {
                     Avatar(text: contact.initials, emoji: contact.emoji, size: 80)
-                    Text(contact.displayName).font(.title2.bold())
+                    Text(contact.displayName).font(.hush(.title2).bold())
                     actionButtons
                 }
                 .frame(maxWidth: .infinity)
@@ -210,8 +210,8 @@ struct ContactEditorView: View {
     private func action(_ label: String, _ symbol: String, _ url: URL) -> some View {
         Link(destination: url) {
             VStack(spacing: 4) {
-                Image(systemName: symbol).font(.title3)
-                Text(label).font(.caption2)
+                Image(systemName: symbol).font(.hush(.title3))
+                Text(label).font(.hush(.caption2))
             }
             .frame(width: 72, height: 54)
             .background(.tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))

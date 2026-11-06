@@ -49,7 +49,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 14) {
                 if settings.showGreeting {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(greeting).font(.title2.bold())
+                        Text(greeting).font(.hush(.title2).bold())
                         Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
                             .foregroundStyle(.secondary)
                     }
@@ -116,7 +116,7 @@ struct HomeView: View {
                         ForEach(QuickKind.allCases) { Label($0.label, systemImage: $0.symbol).tag($0) }
                     }
                 } label: {
-                    Image(systemName: quickKind.symbol).font(.title3).foregroundStyle(.tint)
+                    Image(systemName: quickKind.symbol).font(.hush(.title3)).foregroundStyle(.tint)
                 }
                 .accessibilityLabel("Type: \(quickKind.label)")
                 TextField(quickKind == .task ? "New task for today…" : "New note…", text: $quickText)
@@ -132,13 +132,13 @@ struct HomeView: View {
         let due = habits.filter { !$0.archived && $0.isScheduled(on: today) }
         return Card(title: "Habits", symbol: "flame") {
             if due.isEmpty {
-                Button("Start a habit") { router.startNew(in: .habits) }.font(.subheadline)
+                Button("Start a habit") { router.startNew(in: .habits) }.font(.hush(.subheadline))
             }
             ForEach(due.prefix(8)) { h in
                 HStack(spacing: 10) {
-                    Text(h.emoji).font(.title3)
+                    Text(h.emoji).font(.hush(.title3))
                     Text(h.name).lineLimit(1)
-                    if h.streak > 0 { Label("\(h.streak)", systemImage: "flame.fill").font(.caption.bold()).foregroundStyle(.orange) }
+                    if h.streak > 0 { Label("\(h.streak)", systemImage: "flame.fill").font(.hush(.caption).bold()).foregroundStyle(.orange) }
                     Spacer()
                     HabitCheck(habit: h, date: today, tint: h.color ?? settings.accentColor, size: 30)
                 }
@@ -162,7 +162,7 @@ struct HomeView: View {
                         if entry.isEmpty { context.delete(entry) }
                     } label: {
                         Text(mood.emoji)
-                            .font(.title2)
+                            .font(.hush(.title2))
                             .frame(maxWidth: .infinity, minHeight: 48)
                             .background(today?.mood == mood ? AnyShapeStyle(.tint.opacity(0.25)) : AnyShapeStyle(palette.field),
                                         in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -172,9 +172,9 @@ struct HomeView: View {
                 }
             }
             HStack {
-                Text("Awful").font(.caption2).foregroundStyle(.secondary)
+                Text("Awful").font(.hush(.caption2)).foregroundStyle(.secondary)
                 Spacer()
-                Text("Great").font(.caption2).foregroundStyle(.secondary)
+                Text("Great").font(.hush(.caption2)).foregroundStyle(.secondary)
             }
         }
     }
@@ -188,7 +188,7 @@ struct HomeView: View {
         return Card(title: "Calendar", symbol: "calendar.badge.clock") {
             MonthGrid(month: $calMonth, selected: $calSelected, calendar: cal, marked: marked)
             Button("Open Calendar") { router.go(.calendar) }
-                .font(.subheadline)
+                .font(.hush(.subheadline))
                 .frame(maxWidth: .infinity)
         }
     }
@@ -216,7 +216,7 @@ struct HomeView: View {
                         VStack(alignment: .leading, spacing: 1) {
                             Text(t.title).lineLimit(1)
                             if t.isOverdue, let d = DateText.due(t) {
-                                Text(d).font(.caption).foregroundStyle(.red)
+                                Text(d).font(.hush(.caption)).foregroundStyle(.red)
                             }
                         }
                         Spacer(minLength: 0)
@@ -224,7 +224,7 @@ struct HomeView: View {
                     .buttonStyle(.plain)
                 }
             }
-            if due.count > 8 { Text("+ \(due.count - 8) more").font(.caption).foregroundStyle(.secondary) }
+            if due.count > 8 { Text("+ \(due.count - 8) more").font(.hush(.caption)).foregroundStyle(.secondary) }
         }
     }
 
@@ -241,7 +241,7 @@ struct HomeView: View {
             ForEach(upcomingEvents.prefix(5)) { e in
                 NavigationLink { EventEditorView(event: e) } label: {
                     HStack {
-                        Text(DateText.relativeDay(e.start)).font(.caption.weight(.semibold)).foregroundStyle(.tint).frame(width: 82, alignment: .leading)
+                        Text(DateText.relativeDay(e.start)).font(.hush(.caption).weight(.semibold)).foregroundStyle(.tint).frame(width: 82, alignment: .leading)
                         Text(e.title.isEmpty ? "Event" : e.title).lineLimit(1)
                         Spacer()
                     }
@@ -251,7 +251,7 @@ struct HomeView: View {
             ForEach(upcomingTasks.prefix(5)) { t in
                 NavigationLink { TaskEditorView(task: t) } label: {
                     HStack {
-                        Text(t.dueDate.map(DateText.relativeDay) ?? "").font(.caption.weight(.semibold)).foregroundStyle(.secondary).frame(width: 82, alignment: .leading)
+                        Text(t.dueDate.map(DateText.relativeDay) ?? "").font(.hush(.caption).weight(.semibold)).foregroundStyle(.secondary).frame(width: 82, alignment: .leading)
                         Label(t.title, systemImage: "circle").lineLimit(1)
                         Spacer()
                     }
@@ -273,8 +273,8 @@ struct HomeView: View {
                             NavigationLink { NoteEditorView(note: n) } label: {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(n.emoji.isEmpty ? n.displayTitle : "\(n.emoji) \(n.displayTitle)")
-                                        .font(.subheadline.weight(.semibold)).lineLimit(2)
-                                    Text(n.preview).font(.caption).foregroundStyle(.secondary).lineLimit(3)
+                                        .font(.hush(.subheadline).weight(.semibold)).lineLimit(2)
+                                    Text(n.preview).font(.hush(.caption)).foregroundStyle(.secondary).lineLimit(3)
                                     Spacer(minLength: 0)
                                 }
                                 .padding(10)
@@ -297,7 +297,7 @@ struct HomeView: View {
                     HStack {
                         Text(n.emoji.isEmpty ? n.displayTitle : "\(n.emoji) \(n.displayTitle)").lineLimit(1)
                         Spacer()
-                        Text(n.updatedAt, format: .relative(presentation: .named)).font(.caption).foregroundStyle(.secondary)
+                        Text(n.updatedAt, format: .relative(presentation: .named)).font(.hush(.caption)).foregroundStyle(.secondary)
                     }
                 }
                 .buttonStyle(.plain)
@@ -313,7 +313,7 @@ struct HomeView: View {
                 Label("\(streak) day streak", systemImage: "flame.fill").foregroundStyle(streak > 0 ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
                 Spacer()
                 if wroteToday {
-                    Label("Done today", systemImage: "checkmark").font(.subheadline).foregroundStyle(.green)
+                    Label("Done today", systemImage: "checkmark").font(.hush(.subheadline)).foregroundStyle(.green)
                 } else {
                     Button("Write today's entry") {
                         let e = JournalEntry()
@@ -340,8 +340,8 @@ struct HomeView: View {
 
     private func stat(_ n: Int, _ label: String) -> some View {
         VStack(spacing: 2) {
-            Text("\(n)").font(.title3.bold()).foregroundStyle(.tint)
-            Text(label).font(.caption2).foregroundStyle(.secondary)
+            Text("\(n)").font(.hush(.title3).bold()).foregroundStyle(.tint)
+            Text(label).font(.hush(.caption2)).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
     }

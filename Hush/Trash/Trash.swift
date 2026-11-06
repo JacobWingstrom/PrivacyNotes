@@ -89,14 +89,14 @@ struct TrashView: View {
         let list = rows
         List {
             Text("Items are deleted forever after \(TrashActions.keepDays) days.")
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.hush(.footnote)).foregroundStyle(.secondary)
                 .plainRow(top: 12, bottom: 6)
             ForEach(list) { row in
                 HStack(spacing: 12) {
                     Image(systemName: row.symbol).foregroundStyle(.tint).frame(width: 26)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(row.title.isEmpty ? "Untitled" : row.title).lineLimit(1)
-                        Text(daysLeft(row.deletedAt)).font(.caption).foregroundStyle(.secondary)
+                        Text(daysLeft(row.deletedAt)).font(.hush(.caption)).foregroundStyle(.secondary)
                     }
                     Spacer()
                     Button("Restore") { withAnimation { row.restore() } }

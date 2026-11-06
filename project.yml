@@ -6,7 +6,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "2.0.0"
+    MARKETING_VERSION: "2.1.0"
     CURRENT_PROJECT_VERSION: "1"
     TARGETED_DEVICE_FAMILY: "1"
 targets:
@@ -22,6 +22,29 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: com.jacobwingstrom.hush
             CFBundleURLSchemes: [hush]
+        UIAppFonts:
+          - AtkinsonHyperlegible-Bold.ttf
+          - AtkinsonHyperlegible-BoldItalic.ttf
+          - AtkinsonHyperlegible-Italic.ttf
+          - AtkinsonHyperlegible-Regular.ttf
+          - FiraCode-Variable.ttf
+          - IBMPlexMono-Bold.ttf
+          - IBMPlexMono-BoldItalic.ttf
+          - IBMPlexMono-Italic.ttf
+          - IBMPlexMono-Medium.ttf
+          - IBMPlexMono-Regular.ttf
+          - IBMPlexMono-SemiBold.ttf
+          - Inter-Italic-Variable.ttf
+          - Inter-Variable.ttf
+          - JetBrainsMono-Italic-Variable.ttf
+          - JetBrainsMono-Variable.ttf
+          - Lora-Italic-Variable.ttf
+          - Lora-Variable.ttf
+          - SourceCodePro-Italic-Variable.ttf
+          - SourceCodePro-Variable.ttf
+          - SpaceMono-Bold.ttf
+          - SpaceMono-Italic.ttf
+          - SpaceMono-Regular.ttf
     entitlements:
       path: Config/Hush.entitlements
       properties:

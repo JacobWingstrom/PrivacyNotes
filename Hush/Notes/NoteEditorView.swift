@@ -31,7 +31,7 @@ struct NoteEditorView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             TextField("Title", text: $note.title)
-                .font(.title2.bold())
+                .font(.hush(.title2).bold())
                 .focused($titleFocused)
                 .submitLabel(.next)
                 .padding(.horizontal)
@@ -41,13 +41,13 @@ struct NoteEditorView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         if let path = FolderPath.string(for: note.folderID, in: context) {
-                            Label(path, systemImage: "folder").font(.caption.weight(.medium))
+                            Label(path, systemImage: "folder").font(.hush(.caption).weight(.medium))
                                 .padding(.horizontal, 8).padding(.vertical, 4)
                                 .background(.quaternary, in: Capsule())
                                 .onTapGesture { choosingFolder = true }
                         }
                         ForEach(note.tags, id: \.self) { tag in
-                            Text("#\(tag)").font(.caption.weight(.medium))
+                            Text("#\(tag)").font(.hush(.caption).weight(.medium))
                                 .padding(.horizontal, 8).padding(.vertical, 4)
                                 .background(.quaternary, in: Capsule())
                         }
@@ -60,7 +60,7 @@ struct NoteEditorView: View {
             if note.isEmpty {
                 Button { pickingTemplate = true } label: {
                     Label("Start from a template", systemImage: "doc.on.doc")
-                        .font(.subheadline)
+                        .font(.hush(.subheadline))
                 }
                 .padding(.horizontal)
                 .padding(.top, 8)
@@ -68,7 +68,7 @@ struct NoteEditorView: View {
 
             MarkdownEditor(text: $note.body, pendingInsert: $pendingInsert,
                            fontDesign: settings.fontStyle, accent: UIColor(settings.accentColor),
-                           horizontalInset: 16,
+                           horizontalInset: 16, palette: palette,
                            onOpenNoteLink: openLink,
                            onLinkPicker: { pickingLink = true },
                            onAttach: { choosingAttachment = true })
@@ -238,15 +238,15 @@ struct ZenEditor: View {
             palette.background.ignoresSafeArea()
             VStack(spacing: 0) {
                 MarkdownEditor(text: $note.body, pendingInsert: $pending, fontDesign: settings.fontStyle,
-                               fontScale: 1.15, accent: UIColor(settings.accentColor), horizontalInset: 28, focusOnAppear: true)
+                               fontScale: 1.15, accent: UIColor(settings.accentColor), horizontalInset: 28, palette: palette, focusOnAppear: true)
                     .frame(maxWidth: 700)
                     .padding(.top, 54)
             }
             HStack {
-                Text(note.displayTitle).font(.headline).lineLimit(1)
+                Text(note.displayTitle).font(.hush(.headline)).lineLimit(1)
                 Spacer()
-                Text("\(note.wordCount) words").font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                Button("Done") { dismiss() }.font(.headline).padding(.leading, 12)
+                Text("\(note.wordCount) words").font(.hush(.caption)).foregroundStyle(.secondary).monospacedDigit()
+                Button("Done") { dismiss() }.font(.hush(.headline)).padding(.leading, 12)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -286,7 +286,7 @@ struct NoteHistoryView: View {
         let versions = allVersions.filter { $0.noteID == note.id }
         List {
             Text("A version is saved each time you finish editing. Up to \(NoteHistory.maxVersions) are kept per note.")
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.hush(.footnote)).foregroundStyle(.secondary)
                 .plainRow(top: 12, bottom: 6)
             ForEach(versions) { v in
                 NavigationLink {
@@ -298,8 +298,8 @@ struct NoteHistoryView: View {
                     }
                 } label: {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(v.savedAt.formatted(date: .abbreviated, time: .shortened)).font(.headline)
-                        Text(Markdown.plain(v.body).replacingOccurrences(of: "\n", with: " ")).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                        Text(v.savedAt.formatted(date: .abbreviated, time: .shortened)).font(.hush(.headline))
+                        Text(Markdown.plain(v.body).replacingOccurrences(of: "\n", with: " ")).font(.hush(.caption)).foregroundStyle(.secondary).lineLimit(2)
                     }
                 }
                 .hushRow()
@@ -321,8 +321,8 @@ private struct VersionDetail: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                Text(version.title.isEmpty ? "Untitled" : version.title).font(.title2.bold())
-                Text(version.body).font(.body).textSelection(.enabled)
+                Text(version.title.isEmpty ? "Untitled" : version.title).font(.hush(.title2).bold())
+                Text(version.body).font(.hush(.body)).textSelection(.enabled)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()

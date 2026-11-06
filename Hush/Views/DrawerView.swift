@@ -75,12 +75,12 @@ struct DrawerView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
                 Image(systemName: "lock.shield.fill")
-                    .font(.title2)
+                    .font(.hush(.title2))
                     .foregroundStyle(.tint)
-                Text("Hush").font(.title2.bold())
+                Text("Hush").font(.hush(.title2).bold())
                 Spacer()
                 Button { close() } label: {
-                    Label("Close", systemImage: "xmark").font(.subheadline)
+                    Label("Close", systemImage: "xmark").font(.hush(.subheadline))
                 }
                 .foregroundStyle(.secondary)
             }
@@ -148,9 +148,9 @@ struct DrawerView: View {
                 }
                 Spacer()
                 Label("Stored only on this iPhone", systemImage: "checkmark.shield")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.hush(.caption)).foregroundStyle(.secondary)
             }
-            .font(.title3)
+            .font(.hush(.title3))
             .foregroundStyle(.tint)
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -179,7 +179,7 @@ struct DrawerView: View {
     private func header<Accessory: View>(_ title: String, @ViewBuilder accessory: () -> Accessory) -> some View {
         HStack {
             Text(title.uppercased())
-                .font(.caption.weight(.semibold))
+                .font(.hush(.caption).weight(.semibold))
                 .tracking(0.8)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -206,12 +206,12 @@ private struct DrawerRow: View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: symbol)
-                    .font(.body.weight(.medium))
+                    .font(.hush(.body).weight(.medium))
                     .foregroundStyle(.tint)
                     .frame(width: 26)
-                Text(title).font(.body.weight(selected ? .semibold : .regular))
+                Text(title).font(.hush(.body).weight(selected ? .semibold : .regular))
                 Spacer()
-                if let count { Text("\(count)").font(.subheadline).foregroundStyle(.secondary).monospacedDigit() }
+                if let count { Text("\(count)").font(.hush(.subheadline)).foregroundStyle(.secondary).monospacedDigit() }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 11)
@@ -246,8 +246,8 @@ struct SpaceSwitcher: View {
             withAnimation(.snappy) { settings.currentSpace = id }
         } label: {
             VStack(spacing: 2) {
-                Image(systemName: symbol).font(.body.weight(.medium))
-                Text(label).font(.caption2).lineLimit(1)
+                Image(systemName: symbol).font(.hush(.body).weight(.medium))
+                Text(label).font(.hush(.caption2)).lineLimit(1)
             }
             .frame(maxWidth: .infinity, minHeight: 44)
             .foregroundStyle(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))

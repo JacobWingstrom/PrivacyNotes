@@ -9,7 +9,7 @@ struct Card<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label(title, systemImage: symbol)
-                .font(.subheadline.weight(.semibold))
+                .font(.hush(.subheadline).weight(.semibold))
                 .foregroundStyle(.secondary)
             content
         }
@@ -28,7 +28,7 @@ struct CheckButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                .font(.title3)
+                .font(.hush(.title3))
                 .foregroundStyle(done ? AnyShapeStyle(.tint) : AnyShapeStyle(tint ?? Color.secondary))
                 .contentTransition(.symbolEffect(.replace))
         }
@@ -164,7 +164,7 @@ struct FilterButton<Options: View>: View {
     var body: some View {
         Menu { options } label: {
             Image(systemName: "line.3.horizontal.decrease")
-                .font(.body.weight(.medium))
+                .font(.hush(.body).weight(.medium))
                 .foregroundStyle(active ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
                 .frame(width: 44, height: 44)
                 .background(palette.field, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -185,7 +185,7 @@ struct QuickAddField: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "plus.square").font(.title3).foregroundStyle(.secondary)
+            Image(systemName: "plus.square").font(.hush(.title3)).foregroundStyle(.secondary)
             TextField(prompt, text: $text)
                 .keyboardType(keyboard)
                 .textInputAutocapitalization(keyboard == .URL ? .never : .sentences)
@@ -205,7 +205,7 @@ struct ListHeader: View {
     let title: String
     var body: some View {
         Text(title.uppercased())
-            .font(.caption.weight(.semibold))
+            .font(.hush(.caption).weight(.semibold))
             .tracking(0.8)
             .foregroundStyle(.secondary)
     }
