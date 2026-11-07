@@ -13,13 +13,20 @@ targets:
   Hush:
     type: application
     platform: iOS
-    sources: [Hush]
+    sources:
+      - Hush
+      - path: server/deploy/compose.yml
+        buildPhase: resources
+      - path: server/deploy/compose.lan.yml
+        buildPhase: resources
     dependencies:
       - target: HushWidgets
       - target: HushShare
     info:
       path: Config/Hush-Info.plist
       properties:
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
         CFBundleURLTypes:
           - CFBundleURLName: com.jacobwingstrom.hush
             CFBundleURLSchemes: [hush]
@@ -72,6 +79,7 @@ targets:
         INFOPLIST_KEY_NSCameraUsageDescription: "Hush uses the camera to scan documents. Scans stay encrypted on your iPhone."
         INFOPLIST_KEY_NSSupportsLiveActivities: YES
         INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Hush uses your location only to remind you about tasks when you arrive at or leave a place. It never leaves your phone."
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: "Hush connects to the sync server you set up on your home network. Nothing else on your network is touched."
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Hush uses the microphone to record voice memos. Recordings stay encrypted on your iPhone."
         CODE_SIGNING_ALLOWED: NO
   HushWidgets:

@@ -8,6 +8,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var phase
     @Environment(\.colorScheme) private var systemScheme
     @State private var showSettings = false
+    @State private var showSyncDemo = false
 
     var body: some View {
         let palette = settings.palette(for: systemScheme)
@@ -59,6 +60,11 @@ struct RootView: View {
             }
             .environment(\.palette, palette)
         }
+        .sheet(isPresented: $showSyncDemo) {
+            NavigationStack { SyncSettingsView() }
+                .environment(\.palette, palette)
+                .font(.hush(.body))
+        }
         .sheet(isPresented: $showSettings) {
             SettingsView()
                 .environment(\.palette, palette)
@@ -68,6 +74,7 @@ struct RootView: View {
         .onAppear {
             if UserDefaults.standard.bool(forKey: "demoOpenDrawer") { router.drawerOpen = true }
             if UserDefaults.standard.bool(forKey: "demoOpenSettings") { showSettings = true }
+            if UserDefaults.standard.bool(forKey: "demoOpenSync") { showSyncDemo = true }
         }
         .onChange(of: router.section) { _, _ in lock.vaultUnlocked = false }
         .onChange(of: phase) { _, newPhase in

@@ -64,8 +64,26 @@ jobs:
           brew install xcodegen
           xcodegen generate
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: Start a hush-server for the sync test
+        run: |
+          (cd server && go build -o /tmp/hush-server .)
+          mkdir -p /tmp/hush-data
+          HUSH_DATA=/tmp/hush-data HUSH_TOKEN=ci-sync-token HUSH_ADDR=:8080 nohup /tmp/hush-server > /tmp/hush-server.log 2>&1 &
+          for i in $(seq 1 20); do curl -fsS http://localhost:8080/v1/health && break; sleep 1; done
+
       - name: Build for Simulator and capture screens
+        env:
+          HUSH_SYNC_TOKEN: ci-sync-token
         run: ./scripts/screenshots.sh
+
+      - name: Sync server log
+        if: always()
+        run: tail -n 80 /tmp/hush-server.log || true
 
       - uses: actions/upload-artifact@v4
         with:

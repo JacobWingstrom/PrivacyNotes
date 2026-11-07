@@ -50,3 +50,39 @@ shot lab-stacks -startSection homelab -labTab stacks
 shot notes-graph -startSection notes -demoGraph YES
 shot calendar-day -startSection calendar -calendarDayView YES
 shot habit-detail -startSection habits -demoOpenHabit YES
+
+# End-to-end sync test against a real hush-server on this Mac (started by CI with HUSH_SYNC_TOKEN).
+if [ -n "${HUSH_SYNC_TOKEN:-}" ]; then
+  SPEC="http://localhost:8080|${HUSH_SYNC_TOKEN}|correct horse battery staple"
+  stats() { curl -fsS -H "Authorization: Bearer ${HUSH_SYNC_TOKEN}" http://localhost:8080/v1/stats; }
+  shot sync-setup -startSection notes -demoOpenSync YES
+  # 1. This iPhone (with demo data) creates the passphrase and uploads everything.
+  xcrun simctl terminate "$UDID" "$BID" >/dev/null 2>&1 || true
+  xcrun simctl launch "$UDID" "$BID" -demoSeed YES -startSection notes -demoOpenSync YES -syncTest "$SPEC" >/dev/null
+  for i in $(seq 1 30); do
+    n=$(stats | python3 -c 'import json,sys; print(json.load(sys.stdin)["records"])')
+    [ "$n" -ge 20 ] && break; sleep 2
+  done
+  sleep 4
+  xcrun simctl io "$UDID" screenshot shots/sync-status.png >/dev/null
+  echo "server after upload: $(stats)"
+  [ "$n" -ge 20 ] || { echo "sync upload failed: only $n records on the server"; exit 1; }
+  curl -fsS -H "Authorization: Bearer ${HUSH_SYNC_TOKEN}" "http://localhost:8080/v1/pull?limit=1000" > pulled.json
+  if grep -q "Homelab notes\|Trip ideas" pulled.json; then echo "PLAINTEXT FOUND ON SERVER"; exit 1; fi
+  echo "server copy is encrypted (no note text visible)"
+  # 2. A fresh install joins with the passphrase and gets everything back.
+  xcrun simctl terminate "$UDID" "$BID" >/dev/null 2>&1 || true
+  xcrun simctl uninstall "$UDID" "$BID"
+  xcrun simctl install "$UDID" "$APP"
+  before=$(stats)
+  xcrun simctl launch "$UDID" "$BID" -startSection notes -syncTest "$SPEC" >/dev/null
+  sleep 25
+  xcrun simctl io "$UDID" screenshot shots/sync-restored.png >/dev/null
+  xcrun simctl terminate "$UDID" "$BID" >/dev/null 2>&1 || true
+  xcrun simctl launch "$UDID" "$BID" -startSection homelab -labTab devices >/dev/null
+  sleep 6
+  xcrun simctl io "$UDID" screenshot shots/sync-restored-lab.png >/dev/null
+  echo "server before restore: $before"
+  echo "server after restore:  $(stats)"
+  echo "captured sync shots"
+fi

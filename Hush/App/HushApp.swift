@@ -29,13 +29,19 @@ struct HushApp: App {
                     DemoData.seedIfRequested(container.mainContext)
                     TrashActions.purgeExpired(container.mainContext)
                     ShareInbox.importPending(into: container.mainContext)
+                    SyncEngine.shared.runTestIfRequested()
+                    SyncEngine.shared.appBecameActive()
                     // Turn habit reminders back on once a vacation ends.
                     for h in (try? container.mainContext.fetch(FetchDescriptor<Habit>())) ?? [] where h.remind { Reminders.sync(h) }
                 }
                 .onOpenURL { url in router.handle(url) }
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active { ShareInbox.importPending(into: container.mainContext) }
+                    if phase == .active {
+                        ShareInbox.importPending(into: container.mainContext)
+                        SyncEngine.shared.appBecameActive()
+                    }
                     if phase == .background {
+                        SyncEngine.shared.appWentToBackground()
                         settings.syncWidgetPrivacy()
                         WidgetCenter.shared.reloadAllTimelines()
                     }

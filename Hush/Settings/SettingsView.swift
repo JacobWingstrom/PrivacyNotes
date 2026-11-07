@@ -20,6 +20,7 @@ struct SettingsView: View {
                 Item(id: "Connected Calendars", symbol: "calendar.badge.checkmark", keywords: "outlook apple icloud google exchange sync link") { AnyView(ConnectedCalendarsView()) },
                 Item(id: "Import from iPhone", symbol: "square.and.arrow.down", keywords: "contacts reminders events notes vcf ics markdown text") { AnyView(ImportView()) },
                 Item(id: "Statistics", symbol: "chart.bar", keywords: "counts words") { AnyView(StatisticsView()) },
+                Item(id: "Sync", symbol: "server.rack", keywords: "homelab server self-hosted docker tailscale android desktop") { AnyView(SyncSettingsView()) },
                 Item(id: "Backup & Restore", symbol: "arrow.triangle.2.circlepath", keywords: "import export file") { AnyView(BackupView()) },
                 Item(id: "Export", symbol: "square.and.arrow.up", keywords: "markdown csv pdf vcf ics html share") { AnyView(ExportView()) },
                 Item(id: "Trash", symbol: "trash", keywords: "deleted restore recover") { AnyView(TrashView()) },
@@ -421,14 +422,17 @@ struct PrivacyInfo: View {
     var body: some View {
         HushForm {
             Section {
-                Label("No internet connection is ever made", systemImage: "wifi.slash")
+                Label(SyncSettings.isConfigured ? "Only connects to your own sync server" : "No internet connection is ever made",
+                      systemImage: SyncSettings.isConfigured ? "server.rack" : "wifi.slash")
                 Label("Connected calendars are read through iOS, not the internet", systemImage: "calendar")
                 Label("No accounts, ads or analytics", systemImage: "person.crop.circle.badge.xmark")
                 Label("Data stays on this iPhone and out of iCloud backups", systemImage: "iphone")
                 Label("Vault and Files encrypted with AES-256", systemImage: "lock.shield")
                 Label("Backups encrypted with your own password", systemImage: "key")
             } footer: {
-                Text("Because nothing leaves your phone, deleting Hush deletes your data. Make backups from Backup & Restore.")
+                Text(SyncSettings.isConfigured
+                     ? "Sync sends data only to the server you set up, encrypted on this iPhone with your passphrase first."
+                     : "Because nothing leaves your phone, deleting Hush deletes your data. Make backups from Backup & Restore, or set up Sync with your own server.")
             }
         }
         .navigationTitle("Privacy")
