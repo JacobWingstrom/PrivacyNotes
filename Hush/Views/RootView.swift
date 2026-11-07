@@ -147,11 +147,7 @@ struct BottomBar: View {
                 Image(systemName: settings.lockEnabled ? "lock" : "lock.open")
             }
             .accessibilityLabel(settings.lockEnabled ? "Lock now" : "Set up app lock")
-            Label("On device", systemImage: "checkmark.shield")
-                .font(.hush(.footnote))
-                .foregroundStyle(.secondary)
-                .labelStyle(.titleAndIcon)
-                .accessibilityLabel("Your data is stored only on this device")
+            SyncBadge()
             Spacer(minLength: 0)
             if showsPlus {
                 Button { router.create() } label: {
@@ -204,6 +200,46 @@ struct SectionView: View {
         case .calendar: CalendarView(title: title)
         case .contacts: ContactsView(title: title)
         case .bookmarks: BookmarksView(title: title)
+        }
+    }
+}
+
+/// Bottom-bar status: "On device" normally; sync state once a server is connected (tap to sync).
+private struct SyncBadge: View {
+    @State private var engine = SyncEngine.shared
+
+    var body: some View {
+        if SyncSettings.isConfigured {
+            Button { Task { await engine.sync() } } label: {
+                Label(title, systemImage: symbol)
+                    .font(.hush(.footnote))
+                    .foregroundStyle(engine.phase == .failed ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+                    .labelStyle(.titleAndIcon)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(engine.phase == .failed ? "Sync problem: \(engine.message). Tap to try again" : "Synced with your server. Tap to sync now")
+        } else {
+            Label("On device", systemImage: "checkmark.shield")
+                .font(.hush(.footnote))
+                .foregroundStyle(.secondary)
+                .labelStyle(.titleAndIcon)
+                .accessibilityLabel("Your data is stored only on this device")
+        }
+    }
+
+    private var title: String {
+        switch engine.phase {
+        case .syncing: "Syncing"
+        case .failed: "Sync issue"
+        default: "Synced"
+        }
+    }
+
+    private var symbol: String {
+        switch engine.phase {
+        case .syncing: "arrow.triangle.2.circlepath"
+        case .failed: "exclamationmark.icloud"
+        default: "checkmark.icloud"
         }
     }
 }

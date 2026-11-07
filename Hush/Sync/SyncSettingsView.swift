@@ -50,7 +50,7 @@ private struct SyncConnectForm: View {
             }
 
             Section {
-                TextField("https://hush.your-tailnet.ts.net", text: $url)
+                TextField("Server address", text: $url, prompt: Text(verbatim: "https://hush.your-tailnet.ts.net"))
                     .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
                 HStack {
                     SecureField("Pairing token", text: $token)
@@ -186,7 +186,7 @@ private struct SyncStatusForm: View {
                 LabeledContent("Address", value: SyncSettings.normalizedURL(SyncSettings.serverURL)?.host() ?? SyncSettings.serverURL)
                 if let stats {
                     LabeledContent("Items", value: stats.records.formatted())
-                    LabeledContent("Attachments", value: "\(stats.blobs) · " + ByteCountFormatter.string(fromByteCount: stats.blobBytes, countStyle: .file))
+                    LabeledContent("Attachments", value: stats.blobs == 0 ? "None" : "\(stats.blobs) · " + ByteCountFormatter.string(fromByteCount: stats.blobBytes, countStyle: .file))
                     LabeledContent("Server version", value: stats.version)
                 }
             }

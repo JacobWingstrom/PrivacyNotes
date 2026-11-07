@@ -67,6 +67,7 @@ if [ -n "${HUSH_SYNC_TOKEN:-}" ]; then
   xcrun simctl io "$UDID" screenshot shots/sync-status.png >/dev/null
   echo "server after upload: $(stats)"
   [ "$n" -ge 20 ] || { echo "sync upload failed: only $n records on the server"; exit 1; }
+  stats | grep -q '"blobs":[1-9]' || { echo "attachment upload failed"; exit 1; }
   curl -fsS -H "Authorization: Bearer ${HUSH_SYNC_TOKEN}" "http://localhost:8080/v1/pull?limit=1000" > pulled.json
   if grep -q "Homelab notes\|Trip ideas" pulled.json; then echo "PLAINTEXT FOUND ON SERVER"; exit 1; fi
   echo "server copy is encrypted (no note text visible)"
@@ -84,5 +85,10 @@ if [ -n "${HUSH_SYNC_TOKEN:-}" ]; then
   xcrun simctl io "$UDID" screenshot shots/sync-restored-lab.png >/dev/null
   echo "server before restore: $before"
   echo "server after restore:  $(stats)"
+  [ "$before" = "$(stats)" ] || echo "note: restore changed the server (expected only if merging)"
+  xcrun simctl terminate "$UDID" "$BID" >/dev/null 2>&1 || true
+  xcrun simctl launch "$UDID" "$BID" -startSection files >/dev/null
+  sleep 6
+  xcrun simctl io "$UDID" screenshot shots/sync-restored-files.png >/dev/null
   echo "captured sync shots"
 fi

@@ -119,6 +119,8 @@ enum DemoData {
         let c2 = Contact(); c2.firstName = "Jordan"; c2.lastName = "Lee"
         ctx.insert(c2)
         seedHomelab(ctx)
+        ctx.insert(StoredFile(name: "network-plan.txt", typeIdentifier: "public.plain-text",
+                              data: Data("VLAN 10 servers, VLAN 20 IoT, VLAN 30 guests.\nBackups nightly to the NAS.\n".utf8)))
         try? ctx.save()
     }
 
