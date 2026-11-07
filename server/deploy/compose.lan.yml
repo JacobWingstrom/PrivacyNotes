@@ -1,0 +1,21 @@
+# Hush sync server for your home network only (no Tailscale): http://<server-ip>:8080
+#
+#  1. docker compose up -d
+#  2. docker compose logs hush    -> copy the "Pairing token"
+#  3. Hush > Settings > Sync: address http://<server-ip>:8080 and that token.
+#
+# Everything is encrypted on your phone before it is sent, but use the Tailscale
+# version (compose.yml) if you want to sync away from home.
+services:
+  hush:
+    image: ghcr.io/jacobwingstrom/hush-server:latest
+    ports:
+      - "8080:8080"
+    environment:
+      HUSH_MAX_BLOB_MB: "512"
+    volumes:
+      - hush-data:/data
+    restart: unless-stopped
+
+volumes:
+  hush-data:

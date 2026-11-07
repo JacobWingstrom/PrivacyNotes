@@ -1,0 +1,51 @@
+# Hush sync server, reachable from anywhere on your tailnet at https://hush.<your-tailnet>.ts.net
+#
+#  1. Tailscale admin console > Settings > Keys > Generate auth key. Paste it below.
+#     (Also turn on MagicDNS and HTTPS Certificates under DNS, once per tailnet.)
+#  2. docker compose up -d
+#  3. docker compose logs hush    -> copy the "Pairing token"
+#  4. Hush > Settings > Sync: address https://hush.<your-tailnet>.ts.net and that token.
+#
+# Update later with: docker compose pull && docker compose up -d
+services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    hostname: hush
+    environment:
+      TS_AUTHKEY: "tskey-auth-PASTE-YOUR-KEY-HERE"   # only used the first time
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "true"                          # works in unprivileged LXCs, no /dev/net/tun needed
+      TS_SERVE_CONFIG: /config/serve.json
+    configs:
+      - source: hush-serve
+        target: /config/serve.json
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+    # Also reachable on your home network at http://<server-ip>:8080 (optional):
+    # ports:
+    #   - "8080:8080"
+    restart: unless-stopped
+
+  hush:
+    image: ghcr.io/jacobwingstrom/hush-server:latest
+    network_mode: service:tailscale
+    depends_on:
+      - tailscale
+    environment:
+      HUSH_MAX_BLOB_MB: "512"     # largest single attachment
+      # HUSH_TOKEN: "choose-your-own-long-token"   # optional; otherwise one is generated
+    volumes:
+      - hush-data:/data           # everything Hush stores (all encrypted). Back this up.
+    restart: unless-stopped
+
+configs:
+  hush-serve:
+    content: |
+      {
+        "TCP": { "443": { "HTTPS": true } },
+        "Web": { "$${TS_CERT_DOMAIN}:443": { "Handlers": { "/": { "Proxy": "http://127.0.0.1:8080" } } } }
+      }
+
+volumes:
+  tailscale-state:
+  hush-data:

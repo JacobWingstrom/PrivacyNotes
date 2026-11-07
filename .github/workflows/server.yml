@@ -1,0 +1,79 @@
+name: Sync server image
+
+on:
+  push:
+    branches: [main, hush-notes]
+    paths: ["server/**", ".github/workflows/server.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: server-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: Test
+        working-directory: server
+        run: go vet ./... && go test -race ./...
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (amd64 + arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: server
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/jacobwingstrom/hush-server:latest
+            ghcr.io/jacobwingstrom/hush-server:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.title=hush-server
+            org.opencontainers.image.description=Self-hosted, end-to-end encrypted sync server for Hush
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=MIT
+
+      - name: Check the compose files
+        working-directory: server/deploy
+        run: |
+          docker compose -f compose.yml config -q
+          docker compose -f compose.lan.yml config -q
+          docker compose -f compose.yml config | grep -q 'TS_CERT_DOMAIN'
+
+      - name: Smoke test exactly what a user runs
+        working-directory: server/deploy
+        run: |
+          docker compose -f compose.lan.yml pull
+          docker compose -f compose.lan.yml up -d
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/v1/health && break; sleep 1; done
+          TOKEN=$(docker compose -f compose.lan.yml exec -T hush /hush-server token)
+          echo "token length: ${#TOKEN}"
+          curl -fsS -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8080/v1/stats
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/v1/stats)" = "401"
+          docker compose -f compose.lan.yml logs hush | grep -q "Pairing token"
+          # Data survives a restart.
+          curl -fsS -X POST -H "Authorization: Bearer $TOKEN" -d '{"records":[{"id":"x","data":"AAAA"}]}' http://127.0.0.1:8080/v1/push
+          docker compose -f compose.lan.yml restart hush
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/v1/health >/dev/null && break; sleep 1; done
+          curl -fsS -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8080/v1/pull | grep -q '"id":"x"'
+          sleep 35; docker inspect --format '{{.State.Health.Status}}' $(docker compose -f compose.lan.yml ps -q hush)
+          docker compose -f compose.lan.yml down -v
