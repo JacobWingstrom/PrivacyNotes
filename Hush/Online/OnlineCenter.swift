@@ -1,5 +1,6 @@
 import Foundation
 import BackgroundTasks
+import SwiftData
 import WidgetKit
 
 /// Decides when Hush goes online: on launch, every few minutes while open, and when iOS grants
