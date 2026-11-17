@@ -354,7 +354,7 @@ enum MailScanner {
         task.hasDueTime = t.hasTime
         task.remind = t.due != nil
         task.list = t.list
-        task.priority = Priority(rawValue: t.priority) ?? .none
+        task.priority = Priority(rawValue: t.priority) ?? Priority.none
         task.spaceID = info.account.targetSpace
         task.originRaw = "email"
         task.originRef = info.ref
@@ -432,7 +432,7 @@ enum MailScanner {
         var name = from.name.trimmed
         if name.contains(","), !name.contains(" ") || name.split(separator: ",").count == 2 {
             // "Doe, Jane"
-            let parts = name.split(separator: ",").map { $0.trimmed }
+            let parts = name.split(separator: ",").map { String($0).trimmed }
             if parts.count == 2 { name = parts[1] + " " + parts[0] }
         }
         let words = name.split(separator: " ").map(String.init)

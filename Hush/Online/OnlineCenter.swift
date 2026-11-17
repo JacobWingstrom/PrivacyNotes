@@ -7,7 +7,7 @@ import WidgetKit
 @MainActor
 enum OnlineCenter {
     nonisolated static let refreshTaskID = "com.jacobwingstrom.hush.refresh"
-    static let backgroundKey = "onlineBackgroundRefresh"
+    nonisolated static let backgroundKey = "onlineBackgroundRefresh"
 
     private static var timer: Task<Void, Never>?
 
@@ -90,9 +90,9 @@ enum OnlineCenter {
         let tasks = (try? ctx.fetch(FetchDescriptor<TaskItem>(predicate: #Predicate { $0.reviewRaw == "pending" && $0.deletedAt == nil }))) ?? []
         let events = (try? ctx.fetch(FetchDescriptor<CalendarEvent>(predicate: #Predicate { $0.reviewRaw == "pending" && $0.deletedAt == nil }))) ?? []
         let contacts = (try? ctx.fetch(FetchDescriptor<Contact>(predicate: #Predicate { $0.reviewRaw == "pending" && $0.deletedAt == nil }))) ?? []
-        var review: [WidgetSnapshot.Line] = events.map { .init(title: $0.title, detail: $0.start.formatted(date: .abbreviated, time: $0.isAllDay ? .omitted : .shortened)) }
-        review += tasks.map { .init(title: $0.title, detail: $0.dueDate.map { "Due " + $0.formatted(date: .abbreviated, time: .omitted) } ?? "Task") }
-        review += contacts.map { .init(title: $0.displayName, detail: "Contact") }
+        var review: [WidgetSnapshot.Line] = events.map { WidgetSnapshot.Line(title: $0.title, detail: $0.start.formatted(date: .abbreviated, time: $0.isAllDay ? .omitted : .shortened)) }
+        review += tasks.map { WidgetSnapshot.Line(title: $0.title, detail: $0.dueDate.map { "Due " + $0.formatted(date: .abbreviated, time: .omitted) } ?? "Task") }
+        review += contacts.map { WidgetSnapshot.Line(title: $0.displayName, detail: "Contact") }
 
         let articles = (try? ctx.fetch(FetchDescriptor<FeedArticle>(predicate: #Predicate { !$0.isRead }, sortBy: [SortDescriptor(\.published, order: .reverse)]))) ?? []
         let feeds = Dictionary(((try? ctx.fetch(FetchDescriptor<Feed>())) ?? []).map { ($0.id, $0.displayTitle) }, uniquingKeysWith: { a, _ in a })

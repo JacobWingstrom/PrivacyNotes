@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import QuickLook
 
 /// Senders whose remote images you've chosen to always load.
 enum RemoteContentPrefs {

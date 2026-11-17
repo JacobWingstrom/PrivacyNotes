@@ -82,11 +82,9 @@ final class DAVSync {
 
     private var context: ModelContext { Storage.shared.mainContext }
 
+    /// Doesn't cache, so views can call it while drawing.
     func state(_ id: String) -> DAVState {
-        if let s = states[id] { return s }
-        let s = DAVStore.load(id)
-        states[id] = s
-        return s
+        states[id] ?? DAVStore.load(id)
     }
 
     func syncIfDue(_ account: MailAccount) async {
@@ -352,7 +350,7 @@ final class DAVSync {
             t.hasDueTime = found.hasTime
             t.isDone = found.done
             t.completedAt = found.completedAt
-            t.priority = Priority(rawValue: found.priority) ?? .none
+            t.priority = Priority(rawValue: found.priority) ?? Priority.none
             t.list = collection.name
             Reminders.sync(t)
             st.entries[href] = DAVEntry(href: href, etag: etag, localID: t.id, hash: Self.hash(t), raw: remoteData, collection: collection.href, kind: "task")
