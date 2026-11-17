@@ -49,8 +49,10 @@ enum Reminders {
     // MARK: Per-item sync
 
     static func sync(_ task: TaskItem) {
-        syncLocation(task)
         let id = "task.\(task.id.uuidString)"
+        // Items found in email don't remind you until you confirm them.
+        if task.reviewRaw == "pending" { cancel(id); return }
+        syncLocation(task)
         if let date = task.reminderDate(defaultMinutes: defaultMinutes) {
             schedule(id: id, title: task.title.isEmpty ? "Task" : task.title,
                      body: task.notes.isEmpty ? "Task due" : task.notes, at: date)
@@ -61,19 +63,29 @@ enum Reminders {
 
     static func sync(_ event: CalendarEvent) {
         let id = "event.\(event.id.uuidString)"
-        guard event.alertMinutes >= 0 else { cancel(id); return }
+        guard event.alertMinutes >= 0, event.reviewRaw != "pending", event.deletedAt == nil else { cancel(id); return }
+        // Repeating events: remind about the next occurrence.
+        var start = event.start
+        if !event.recurrenceRule.isEmpty {
+            let cal = Calendar.current
+            var day = cal.startOfDay(for: .now)
+            for _ in 0..<400 {
+                if let occ = event.occurrence(on: day), occ.start >= .now { start = occ.start; break }
+                day = cal.date(byAdding: .day, value: 1, to: day) ?? day.addingTimeInterval(86400)
+            }
+        }
         let base = event.isAllDay
-            ? Calendar.current.startOfDay(for: event.start).addingTimeInterval(Double(defaultMinutes * 60))
-            : event.start
+            ? Calendar.current.startOfDay(for: start).addingTimeInterval(Double(defaultMinutes * 60))
+            : start
         let when = base.addingTimeInterval(Double(-event.alertMinutes * 60))
-        let time = event.isAllDay ? "Today" : event.start.formatted(date: .omitted, time: .shortened)
+        let time = event.isAllDay ? "Today" : start.formatted(date: .omitted, time: .shortened)
         schedule(id: id, title: event.title.isEmpty ? "Event" : event.title,
                  body: event.location.isEmpty ? time : "\(time) · \(event.location)", at: when)
     }
 
     static func sync(_ contact: Contact) {
         let id = "birthday.\(contact.id.uuidString)"
-        guard contact.birthdayReminder, let bday = contact.birthday else { cancel(id); return }
+        guard contact.birthdayReminder, contact.reviewRaw != "pending", let bday = contact.birthday else { cancel(id); return }
         var comps = Calendar.current.dateComponents([.month, .day], from: bday)
         comps.hour = defaultMinutes / 60
         comps.minute = defaultMinutes % 60
@@ -116,6 +128,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = self
         TempFiles.clear()
+        OnlineCenter.registerBackgroundTask()
         return true
     }
 

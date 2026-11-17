@@ -47,6 +47,7 @@ struct CalendarView: View {
 
     fileprivate var listBody: some View {
         List {
+            ReviewBanner()
             if agenda {
                 agendaSections
             } else {
@@ -148,7 +149,16 @@ struct CalendarView: View {
     private var markedDays: Set<Date> {
         var days = Set<Date>()
         for e in phoneEvents { days.insert(cal.startOfDay(for: e.startDate)) }
-        for e in events {
+        for e in events where !e.recurrenceRule.isEmpty {
+            // Repeating events: mark each day they occur in the visible months.
+            var d = cal.date(byAdding: .month, value: -1, to: month) ?? month
+            let last = cal.date(byAdding: .month, value: 3, to: month) ?? month
+            while d < last {
+                if e.occurs(on: d) { days.insert(cal.startOfDay(for: d)) }
+                d = cal.date(byAdding: .day, value: 1, to: d) ?? last
+            }
+        }
+        for e in events where e.recurrenceRule.isEmpty {
             var d = cal.startOfDay(for: e.start)
             let last = cal.startOfDay(for: max(e.end, e.start))
             var guardCount = 0
@@ -350,8 +360,10 @@ struct EventRow: View {
                 }
             }
             Spacer()
+            if !event.recurrenceRule.isEmpty { Image(systemName: "repeat").font(.hush(.caption)).foregroundStyle(.secondary) }
             if event.alertMinutes >= 0 { Image(systemName: "bell").font(.hush(.caption)).foregroundStyle(.secondary) }
         }
+        .reviewStyle(event)
     }
 }
 
@@ -380,6 +392,20 @@ struct EventEditorView: View {
                            displayedComponents: event.isAllDay ? [.date] : [.date, .hourAndMinute])
                 DatePicker("Ends", selection: $event.end, in: event.start...,
                            displayedComponents: event.isAllDay ? [.date] : [.date, .hourAndMinute])
+            }
+            if let rule = Recurrence(event.recurrenceRule) {
+                Section {
+                    Label(rule.summary, systemImage: "repeat")
+                    Button("Stop Repeating", role: .destructive) { event.recurrenceRule = "" }
+                } footer: {
+                    Text("Repeats as set in your calendar. Edits here change the whole series.")
+                }
+            }
+            if event.isPendingReview {
+                Section {
+                    Label(event.originNote, systemImage: "envelope")
+                    Button("Confirm Event") { MailScanner.confirm(event) }
+                } header: { Text("Found in Email") }
             }
             Section {
                 Picker("Alert", selection: $event.alertMinutes) {

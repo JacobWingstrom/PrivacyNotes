@@ -70,6 +70,10 @@ extension TaskItem: SyncModel {
         e.bool("locationOnArrive", locationOnArrive)
         e.string("spaceID", spaceID)
         e.date("deletedAt", deletedAt)
+        e.string("originRaw", originRaw)
+        e.string("reviewRaw", reviewRaw)
+        e.string("originRef", originRef)
+        e.string("originNote", originNote)
     }
     func syncDecode(_ d: SyncDecoder) {
         if let v = d.string("title") { title = v }
@@ -94,6 +98,10 @@ extension TaskItem: SyncModel {
         if let v = d.bool("locationOnArrive") { locationOnArrive = v }
         if let v = d.string("spaceID") { spaceID = v }
         if d.has("deletedAt") { deletedAt = d.date("deletedAt") }
+        if let v = d.string("originRaw") { originRaw = v }
+        if let v = d.string("reviewRaw") { reviewRaw = v }
+        if let v = d.string("originRef") { originRef = v }
+        if let v = d.string("originNote") { originNote = v }
     }
 }
 
@@ -114,6 +122,12 @@ extension CalendarEvent: SyncModel {
         e.date("createdAt", createdAt)
         e.string("spaceID", spaceID)
         e.date("deletedAt", deletedAt)
+        e.string("originRaw", originRaw)
+        e.string("reviewRaw", reviewRaw)
+        e.string("originRef", originRef)
+        e.string("originNote", originNote)
+        e.string("icalUID", icalUID)
+        e.string("recurrenceRule", recurrenceRule)
     }
     func syncDecode(_ d: SyncDecoder) {
         if let v = d.string("title") { title = v }
@@ -127,6 +141,12 @@ extension CalendarEvent: SyncModel {
         if let v = d.date("createdAt") { createdAt = v }
         if let v = d.string("spaceID") { spaceID = v }
         if d.has("deletedAt") { deletedAt = d.date("deletedAt") }
+        if let v = d.string("originRaw") { originRaw = v }
+        if let v = d.string("reviewRaw") { reviewRaw = v }
+        if let v = d.string("originRef") { originRef = v }
+        if let v = d.string("originNote") { originNote = v }
+        if let v = d.string("icalUID") { icalUID = v }
+        if let v = d.string("recurrenceRule") { recurrenceRule = v }
     }
 }
 
@@ -250,6 +270,10 @@ extension Contact: SyncModel {
         e.date("createdAt", createdAt)
         e.string("spaceID", spaceID)
         e.date("deletedAt", deletedAt)
+        e.string("originRaw", originRaw)
+        e.string("reviewRaw", reviewRaw)
+        e.string("originRef", originRef)
+        e.string("originNote", originNote)
     }
     func syncDecode(_ d: SyncDecoder) {
         if let v = d.string("firstName") { firstName = v }
@@ -266,6 +290,10 @@ extension Contact: SyncModel {
         if let v = d.date("createdAt") { createdAt = v }
         if let v = d.string("spaceID") { spaceID = v }
         if d.has("deletedAt") { deletedAt = d.date("deletedAt") }
+        if let v = d.string("originRaw") { originRaw = v }
+        if let v = d.string("reviewRaw") { reviewRaw = v }
+        if let v = d.string("originRef") { originRef = v }
+        if let v = d.string("originNote") { originNote = v }
     }
 }
 

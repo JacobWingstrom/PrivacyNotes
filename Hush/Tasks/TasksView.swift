@@ -61,6 +61,7 @@ struct TasksView: View {
 
     var body: some View {
         List {
+            ReviewBanner()
             Picker("Show", selection: $filter) {
                 ForEach(TaskFilter.allCases) { Text($0.label).tag($0) }
             }
@@ -164,6 +165,7 @@ struct TaskRow: View {
                         .foregroundStyle(task.isDone ? .secondary : .primary)
                     meta
                 }
+                .reviewStyle(task)
             }
         }
         .padding(.vertical, 6)

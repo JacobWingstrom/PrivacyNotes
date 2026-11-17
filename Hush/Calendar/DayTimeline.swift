@@ -35,7 +35,8 @@ struct DayTimeline: View {
         let dayTasks = tasks.filter { t in !t.isDone && (t.dueDate.map { cal.isDate($0, inSameDayAs: day) } ?? false) }
         let unscheduled = dayTasks.filter { !$0.hasDueTime }
         var blocks: [Block] = events.filter { !$0.isAllDay && $0.occurs(on: day) }.map { e in
-            Block(id: "e\(e.id)", title: e.title.isEmpty ? "Event" : e.title, start: e.start, end: max(e.end, e.start.addingTimeInterval(900)),
+            let occ = e.occurrence(on: day) ?? (start: e.start, end: e.end)
+            return Block(id: "e\(e.id)", title: e.title.isEmpty ? "Event" : e.title, start: occ.start, end: max(occ.end, occ.start.addingTimeInterval(900)),
                   color: e.color ?? settings.accentColor, symbol: "calendar") { editingEvent = e }
         }
         blocks += dayTasks.filter(\.hasDueTime).compactMap { t in
