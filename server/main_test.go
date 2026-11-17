@@ -161,3 +161,16 @@ func TestErase(t *testing.T) {
 		t.Fatal("stats should include version")
 	}
 }
+
+func TestSystemStats(t *testing.T) {
+	info := collectSystem(t.TempDir(), "", "/proc", "/sys")
+	if info.Cores < 1 || info.MemTotal == 0 || info.MemUsed > info.MemTotal {
+		t.Fatalf("bad system info: %+v", info)
+	}
+	if len(info.Disks) == 0 || info.Disks[0].Used > info.Disks[0].Total {
+		t.Fatalf("no data disk: %+v", info.Disks)
+	}
+	if info.CPUPercent < 0 || info.CPUPercent > 100 || len(info.Load) != 3 {
+		t.Fatalf("bad cpu/load: %+v", info)
+	}
+}

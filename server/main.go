@@ -214,6 +214,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("PUT /v1/vault", s.auth(s.putVault))
 	mux.HandleFunc("DELETE /v1/vault", s.auth(s.eraseVault))
 	mux.HandleFunc("GET /v1/stats", s.auth(s.stats))
+	mux.HandleFunc("GET /v1/system", s.auth(s.system))
 	mux.HandleFunc("POST /v1/push", s.auth(s.push))
 	mux.HandleFunc("GET /v1/pull", s.auth(s.pull))
 	mux.HandleFunc("PUT /v1/blobs/{id}", s.auth(s.putBlob))

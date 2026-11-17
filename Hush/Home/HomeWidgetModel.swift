@@ -2,6 +2,8 @@ import SwiftUI
 
 enum HomeWidgetKind: String, Codable, CaseIterable, Identifiable {
     case greeting, quickAdd, tasks, board, habits, calendar, agenda, notes, note, journal, mood, stats, bookmarks, contacts, countdown, files
+    // Online & homelab (Dynacat-style)
+    case server, containers, monitor, weather, markets, news, feeds, mail, review, releases, dns, customAPI, clock
 
     var id: String { rawValue }
 
@@ -23,6 +25,19 @@ enum HomeWidgetKind: String, Codable, CaseIterable, Identifiable {
         case .contacts: "Contacts"
         case .countdown: "Countdown"
         case .files: "Recent Files"
+        case .server: "Server Stats"
+        case .containers: "Containers & VMs"
+        case .monitor: "Uptime Monitor"
+        case .weather: "Weather"
+        case .markets: "Markets"
+        case .news: "Hacker News & Lobsters"
+        case .feeds: "Feed Headlines"
+        case .mail: "Mail"
+        case .review: "To Review"
+        case .releases: "Releases"
+        case .dns: "DNS Blocking"
+        case .customAPI: "Custom API"
+        case .clock: "World Clock"
         }
     }
 
@@ -44,6 +59,19 @@ enum HomeWidgetKind: String, Codable, CaseIterable, Identifiable {
         case .contacts: "person.crop.circle"
         case .countdown: "hourglass"
         case .files: "folder"
+        case .server: "cpu"
+        case .containers: "shippingbox"
+        case .monitor: "waveform.path.ecg"
+        case .weather: "cloud.sun"
+        case .markets: "chart.line.uptrend.xyaxis"
+        case .news: "newspaper"
+        case .feeds: "dot.radiowaves.up.forward"
+        case .mail: "envelope"
+        case .review: "checklist"
+        case .releases: "tag"
+        case .dns: "shield.lefthalf.filled"
+        case .customAPI: "curlybraces"
+        case .clock: "globe"
         }
     }
 
@@ -65,12 +93,25 @@ enum HomeWidgetKind: String, Codable, CaseIterable, Identifiable {
         case .contacts: "Favorite people with call, message and email buttons."
         case .countdown: "Days until (or since) a date you choose."
         case .files: "Your newest files, scans and voice memos."
+        case .server: "CPU, memory, disks, load, temperatures and network from your hush-server, Glances, Netdata or Proxmox, with history charts."
+        case .containers: "Docker containers (Glances) or Proxmox VMs and LXCs: what's running, CPU and memory."
+        case .monitor: "Checks your sites and services, with response times and uptime history."
+        case .weather: "Current conditions, hourly and 7-day forecast (Open-Meteo, no account)."
+        case .markets: "Stocks, ETFs and crypto with sparklines and charts (Yahoo Finance)."
+        case .news: "Top stories from Hacker News or Lobsters."
+        case .feeds: "Newest unread articles from your feeds and subreddits."
+        case .mail: "Unread email in your inbox."
+        case .review: "Events, tasks and contacts found in email, waiting for you."
+        case .releases: "Latest releases of GitHub projects you follow."
+        case .dns: "Pi-hole or AdGuard Home: queries, blocked, top blocked domains."
+        case .customAPI: "Any JSON API: pick the values to show, numbers get charts."
+        case .clock: "The time here and in other time zones."
         }
     }
 
     var defaultSize: WidgetSize {
         switch self {
-        case .mood, .countdown, .stats, .journal: .small
+        case .mood, .countdown, .stats, .journal, .clock, .review: .small
         case .calendar, .note: .large
         default: .medium
         }
@@ -81,6 +122,28 @@ enum HomeWidgetKind: String, Codable, CaseIterable, Identifiable {
         case .greeting, .quickAdd: [.medium]
         case .calendar: [.medium, .large]
         default: WidgetSize.allCases
+        }
+    }
+}
+
+extension HomeWidgetKind {
+    static let local: [HomeWidgetKind] = [.greeting, .quickAdd, .tasks, .board, .habits, .calendar, .agenda, .notes, .note, .journal,
+                                          .mood, .stats, .bookmarks, .contacts, .countdown, .files, .clock, .mail, .review, .feeds]
+    static let online: [HomeWidgetKind] = [.server, .containers, .monitor, .dns, .releases, .weather, .markets, .news, .customAPI]
+
+    /// Contacts a server (yours or a public one) when it refreshes.
+    var isOnline: Bool { Self.online.contains(self) }
+
+    /// Shown in the gallery so you know who a widget talks to.
+    var connectsTo: String? {
+        switch self {
+        case .server, .containers, .dns, .customAPI: "Your server only"
+        case .monitor: "The addresses you add"
+        case .weather: "open-meteo.com"
+        case .markets: "query1.finance.yahoo.com"
+        case .news: "hacker-news.firebaseio.com or lobste.rs"
+        case .releases: "api.github.com"
+        default: nil
         }
     }
 }
@@ -141,6 +204,30 @@ struct HomeWidget: Codable, Identifiable, Hashable {
     var favoritesOnly = true
     // Countdown
     var targetDate: Date? = nil
+    // Online & homelab
+    /// Base address of the server or API.
+    var endpoint = ""
+    /// hush, glances, netdata, proxmox · pihole, pihole5, adguard · hn, lobsters
+    var source = ""
+    /// Monitors ("Name|URL"), tickers, repos ("owner/repo"), time zones, or custom API fields ("Label=path|unit").
+    var items: [String] = []
+    var refreshMinutes = 5
+    var allowSelfSigned = false
+    /// User name, Proxmox token ID (user@pam!name) or a custom header name.
+    var username = ""
+    var node = ""
+    var location = ""
+    var latitude = 0.0
+    var longitude = 0.0
+    var imperial = false
+    /// Feeds widget: "" (all unread), "folder:Name" or a feed id.
+    var feedScope = ""
+    /// Monitor: also check the URLs of your Homelab services.
+    var includeHomelab = false
+    var sortMode = ""
+
+    /// Widgets that talk to the internet or your servers.
+    var isOnline: Bool { kind.isOnline }
 
     init(kind: HomeWidgetKind, size: WidgetSize? = nil) {
         self.kind = kind
@@ -150,6 +237,21 @@ struct HomeWidget: Codable, Identifiable, Hashable {
             title = "Vacation"
         }
         if kind == .notes { limit = 4 }
+        switch kind {
+        case .server:
+            source = SyncSettings.serverURL.isEmpty ? "glances" : "hush"
+            endpoint = SyncSettings.serverURL
+            refreshMinutes = 1
+        case .containers: source = "glances"; limit = 8
+        case .monitor: refreshMinutes = 2; includeHomelab = true
+        case .weather: refreshMinutes = 30
+        case .markets: items = ["AAPL", "VOO", "BTC-USD"]; refreshMinutes = 15
+        case .news: source = "hn"; refreshMinutes = 30; limit = 6
+        case .releases: items = ["glanceapp/glance", "jellyfin/jellyfin"]; refreshMinutes = 120
+        case .dns: source = "pihole"
+        case .clock: items = ["Europe/Berlin", "America/New_York", "Asia/Tokyo"]
+        default: break
+        }
     }
 
     var displayTitle: String { title.trimmed.isEmpty ? kind.name : title.trimmed }
@@ -161,6 +263,8 @@ struct HomeWidget: Codable, Identifiable, Hashable {
         case id, kind, size, title, symbol, tintHex, showHeader, limit, taskScope, listName, showCompleted, habitIDs, habitStyle,
              calendarStyle, days, includeTasks, includePhoneEvents, noteScope, folderID, tag, noteStyle, noteID, message, showDate,
              stats, quickKinds, showQuickField, favoritesOnly, targetDate
+        case endpoint, source, items, refreshMinutes, allowSelfSigned, username, node, location, latitude, longitude, imperial,
+             feedScope, includeHomelab, sortMode
     }
 
     init(from decoder: Decoder) throws {
@@ -196,6 +300,28 @@ struct HomeWidget: Codable, Identifiable, Hashable {
         showQuickField = (try? c.decode(Bool.self, forKey: .showQuickField)) ?? true
         favoritesOnly = (try? c.decode(Bool.self, forKey: .favoritesOnly)) ?? true
         targetDate = try? c.decode(Date.self, forKey: .targetDate)
+        endpoint = (try? c.decode(String.self, forKey: .endpoint)) ?? ""
+        source = (try? c.decode(String.self, forKey: .source)) ?? ""
+        items = (try? c.decode([String].self, forKey: .items)) ?? []
+        refreshMinutes = (try? c.decode(Int.self, forKey: .refreshMinutes)) ?? 5
+        allowSelfSigned = (try? c.decode(Bool.self, forKey: .allowSelfSigned)) ?? false
+        username = (try? c.decode(String.self, forKey: .username)) ?? ""
+        node = (try? c.decode(String.self, forKey: .node)) ?? ""
+        location = (try? c.decode(String.self, forKey: .location)) ?? ""
+        latitude = (try? c.decode(Double.self, forKey: .latitude)) ?? 0
+        longitude = (try? c.decode(Double.self, forKey: .longitude)) ?? 0
+        imperial = (try? c.decode(Bool.self, forKey: .imperial)) ?? false
+        feedScope = (try? c.decode(String.self, forKey: .feedScope)) ?? ""
+        includeHomelab = (try? c.decode(Bool.self, forKey: .includeHomelab)) ?? false
+        sortMode = (try? c.decode(String.self, forKey: .sortMode)) ?? ""
+    }
+
+    /// Password, API token or key for this widget (kept in the Keychain, not in settings).
+    var secret: String {
+        get { Keychain.load("widget.\(id.uuidString)").map { String(decoding: $0, as: UTF8.self) } ?? "" }
+        nonmutating set {
+            if newValue.isEmpty { Keychain.delete("widget.\(id.uuidString)") } else { Keychain.save(Data(newValue.utf8), for: "widget.\(id.uuidString)") }
+        }
     }
 }
 
@@ -231,6 +357,9 @@ enum HomeLayouts {
         Preset(id: "homelab", name: "Homelab & Work", symbol: "server.rack", detail: "Notes, open tasks and quick links.", widgets: {
             [w(.greeting) { $0.showDate = true }, w(.notes) { $0.noteScope = "recent"; $0.limit = 6 }, w(.tasks) { $0.taskScope = "all"; $0.limit = 8 },
              w(.bookmarks) { $0.favoritesOnly = false; $0.limit = 8 }, w(.files, .small), w(.stats, .small) { $0.stats = ["notes", "openTasks", "files", "bookmarks"] }]
+        }),
+        Preset(id: "dashboard", name: "Homelab Dashboard", symbol: "gauge.with.dots.needle.67percent", detail: "Server stats, containers, uptime, DNS, releases and weather.", widgets: {
+            [w(.server, .large), w(.monitor), w(.containers), w(.dns, .medium), w(.releases), w(.weather, .small), w(.clock, .small), w(.news)]
         }),
         Preset(id: "minimal", name: "Minimal", symbol: "minus.circle", detail: "Just the essentials.", widgets: {
             [w(.greeting) { $0.showDate = true }, w(.tasks), w(.notes) { $0.limit = 3 }]
