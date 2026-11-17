@@ -60,6 +60,11 @@ struct RootView: View {
             }
             .environment(\.palette, palette)
         }
+        .sheet(item: Binding(get: { router.composeRequest }, set: { router.composeRequest = $0 })) { req in
+            ComposeView(request: req)
+                .environment(\.palette, palette)
+                .font(.hush(.body))
+        }
         .sheet(isPresented: $showSyncDemo) {
             NavigationStack { SyncSettingsView() }
                 .environment(\.palette, palette)
@@ -200,6 +205,8 @@ struct SectionView: View {
         case .calendar: CalendarView(title: title)
         case .contacts: ContactsView(title: title)
         case .bookmarks: BookmarksView(title: title)
+        case .mail: MailView(title: title)
+        case .feeds: FeedsView(title: title)
         }
     }
 }

@@ -17,6 +17,7 @@ struct SettingsView: View {
     private var groups: [(String, [Item])] {
         [
             ("Your Data", [
+                Item(id: "Mail, Calendars & Feeds", symbol: "envelope", keywords: "email imap smtp mailbox.org caldav carddav rss reddit account review scan") { AnyView(OnlineSettingsView()) },
                 Item(id: "Connected Calendars", symbol: "calendar.badge.checkmark", keywords: "outlook apple icloud google exchange sync link") { AnyView(ConnectedCalendarsView()) },
                 Item(id: "Import from iPhone", symbol: "square.and.arrow.down", keywords: "contacts reminders events notes vcf ics markdown text") { AnyView(ImportView()) },
                 Item(id: "Statistics", symbol: "chart.bar", keywords: "counts words") { AnyView(StatisticsView()) },
@@ -422,8 +423,11 @@ struct PrivacyInfo: View {
     var body: some View {
         HushForm {
             Section {
-                Label(SyncSettings.isConfigured ? "Only connects to your own sync server" : "No internet connection is ever made",
-                      systemImage: SyncSettings.isConfigured ? "server.rack" : "wifi.slash")
+                Label(SyncSettings.isConfigured ? "Only connects to your own sync server" : (OnlineCenter.isActive ? "Only connects to the mail, calendar and feed servers you added" : "No internet connection is ever made"),
+                      systemImage: SyncSettings.isConfigured ? "server.rack" : (OnlineCenter.isActive ? "arrow.left.arrow.right" : "wifi.slash"))
+                if OnlineCenter.isActive && SyncSettings.isConfigured {
+                    Label("Mail, calendars and feeds connect directly to the servers you added", systemImage: "arrow.left.arrow.right")
+                }
                 Label("Connected calendars are read through iOS, not the internet", systemImage: "calendar")
                 Label("No accounts, ads or analytics", systemImage: "person.crop.circle.badge.xmark")
                 Label("Data stays on this iPhone and out of iCloud backups", systemImage: "iphone")

@@ -33,6 +33,7 @@ struct ContactsView: View {
     var body: some View {
         let favorites = filtered.filter(\.isFavorite)
         List {
+            ReviewBanner()
             if !favorites.isEmpty && search.isEmpty {
                 Section { ForEach(favorites) { row($0) } } header: { ListHeader(title: "Favorites") }
             }
@@ -84,6 +85,7 @@ struct ContactRow: View {
             if contact.isFavorite { Image(systemName: "star.fill").font(.hush(.caption)).foregroundStyle(.yellow) }
         }
         .padding(.vertical, 4)
+        .reviewStyle(contact)
     }
 }
 

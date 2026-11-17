@@ -119,6 +119,14 @@ final class TaskItem {
     var locationOnArrive: Bool = true
     var spaceID: String = ""
     var deletedAt: Date? = nil
+    /// Where the item came from: "" (made in Hush), "email" (found in an email) or "dav" (synced calendar/address book).
+    var originRaw: String = ""
+    /// "" (confirmed), "pending" (waiting for review) or "auto" (added automatically from a trusted source).
+    var reviewRaw: String = ""
+    /// Link back to the source, e.g. the email ("account|folder|uid|message-id").
+    var originRef: String = ""
+    /// Short human description of the source, e.g. "Lufthansa · Your booking".
+    var originNote: String = ""
 
     init(title: String = "") { self.title = title; spaceID = Spaces.newItemSpace }
 
@@ -176,6 +184,18 @@ final class CalendarEvent {
 
     var spaceID: String = ""
     var deletedAt: Date? = nil
+    /// Where the item came from: "" (made in Hush), "email" (found in an email) or "dav" (synced calendar/address book).
+    var originRaw: String = ""
+    /// "" (confirmed), "pending" (waiting for review) or "auto" (added automatically from a trusted source).
+    var reviewRaw: String = ""
+    /// Link back to the source, e.g. the email ("account|folder|uid|message-id").
+    var originRef: String = ""
+    /// Short human description of the source, e.g. "Lufthansa · Your booking".
+    var originNote: String = ""
+    /// iCalendar UID, kept so invite updates and synced calendars match the same event.
+    var icalUID: String = ""
+    /// iCalendar RRULE (e.g. "FREQ=WEEKLY;BYDAY=MO"), optionally followed by "|EX=yyyyMMdd,…" for skipped days.
+    var recurrenceRule: String = ""
 
     init(start: Date = Date()) {
         self.start = start
@@ -185,11 +205,27 @@ final class CalendarEvent {
 
     var color: Color? { NoteColor(rawValue: colorName)?.color }
 
-    func occurs(on day: Date) -> Bool {
+    func occurs(on day: Date) -> Bool { occurrence(on: day) != nil }
+
+    /// Start and end of the occurrence that falls on `day` (repeating events included), or nil.
+    func occurrence(on day: Date) -> (start: Date, end: Date)? {
         let cal = Calendar.current
         let dayStart = cal.startOfDay(for: day)
         let dayEnd = dayStart.addingTimeInterval(86400)
-        return start < dayEnd && max(end, start.addingTimeInterval(1)) > dayStart
+        func overlaps(_ s: Date, _ e: Date) -> Bool { s < dayEnd && max(e, s.addingTimeInterval(1)) > dayStart }
+        guard !recurrenceRule.isEmpty, let rule = Recurrence(recurrenceRule) else {
+            return overlaps(start, end) ? (start, end) : nil
+        }
+        let duration = max(end.timeIntervalSince(start), 0)
+        let spanDays = Int(duration / 86400) + 1
+        for back in 0...min(spanDays, 31) {
+            guard let candidate = cal.date(byAdding: .day, value: -back, to: dayStart) else { continue }
+            if let s = rule.occurrenceStart(on: candidate, seriesStart: start, calendar: cal) {
+                let e = s.addingTimeInterval(duration)
+                if overlaps(s, e) { return (s, e) }
+            }
+        }
+        return nil
     }
 }
 
@@ -334,6 +370,14 @@ final class Contact {
     var createdAt: Date = Date()
     var spaceID: String = ""
     var deletedAt: Date? = nil
+    /// Where the item came from: "" (made in Hush), "email" (found in an email) or "dav" (synced calendar/address book).
+    var originRaw: String = ""
+    /// "" (confirmed), "pending" (waiting for review) or "auto" (added automatically from a trusted source).
+    var reviewRaw: String = ""
+    /// Link back to the source, e.g. the email ("account|folder|uid|message-id").
+    var originRef: String = ""
+    /// Short human description of the source, e.g. "Lufthansa · Your booking".
+    var originNote: String = ""
 
     init() { spaceID = Spaces.newItemSpace }
 
@@ -644,6 +688,24 @@ extension Bookmark: HushItem {}
 extension Folder: HushItem {}
 extension Habit: HushItem {}
 
+/// Items that can be found in emails or synced from mailbox.org, and reviewed before they count.
+protocol Reviewable: AnyObject {
+    var originRaw: String { get set }
+    var reviewRaw: String { get set }
+    var originRef: String { get set }
+    var originNote: String { get set }
+}
+
+extension Reviewable {
+    var isPendingReview: Bool { reviewRaw == "pending" }
+    var isAutoAdded: Bool { reviewRaw == "auto" }
+    var isFromEmail: Bool { originRaw == "email" }
+}
+
+extension TaskItem: Reviewable {}
+extension CalendarEvent: Reviewable {}
+extension Contact: Reviewable {}
+
 /// Strips Markdown symbols for previews and widgets.
 enum Markdown {
     static func plain(_ s: String) -> String {
@@ -666,7 +728,7 @@ enum Models {
         Note.self, TaskItem.self, CalendarEvent.self, JournalEntry.self, Drawing.self,
         VaultItem.self, StoredFile.self, Contact.self, Bookmark.self,
         Folder.self, NoteVersion.self, NoteTemplate.self, Habit.self,
-    ] + HomelabModels.all + BoardModels.all
+    ] + HomelabModels.all + BoardModels.all + OnlineModels.all
 }
 
 /// Item icons are SF Symbol names. Older emoji values fall back to a default symbol.

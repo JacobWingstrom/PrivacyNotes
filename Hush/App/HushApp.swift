@@ -31,6 +31,7 @@ struct HushApp: App {
                     ShareInbox.importPending(into: container.mainContext)
                     SyncEngine.shared.runTestIfRequested()
                     SyncEngine.shared.appBecameActive()
+                    OnlineCenter.appBecameActive()
                     // Turn habit reminders back on once a vacation ends.
                     for h in (try? container.mainContext.fetch(FetchDescriptor<Habit>())) ?? [] where h.remind { Reminders.sync(h) }
                 }
@@ -39,9 +40,11 @@ struct HushApp: App {
                     if phase == .active {
                         ShareInbox.importPending(into: container.mainContext)
                         SyncEngine.shared.appBecameActive()
+                        OnlineCenter.appBecameActive()
                     }
                     if phase == .background {
                         SyncEngine.shared.appWentToBackground()
+                        OnlineCenter.appWentToBackground()
                         settings.syncWidgetPrivacy()
                         WidgetCenter.shared.reloadAllTimelines()
                     }

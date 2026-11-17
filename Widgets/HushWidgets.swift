@@ -10,6 +10,9 @@ struct HushWidgetBundle: WidgetBundle {
         TodayWidget()
         HabitsWidget()
         QuickAddWidget()
+        MailWidget()
+        ReviewWidget()
+        HeadlinesWidget()
         FocusLiveActivity()
         if #available(iOS 18.0, *) {
             NewNoteControl()

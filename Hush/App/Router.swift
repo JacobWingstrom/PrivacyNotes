@@ -16,6 +16,8 @@ final class Router {
 
     /// Asks for the focus timer, a voice memo or today's note from outside the app.
     var showFocus = false
+    /// A new email to write (from Mail, a mailto: link or a reply).
+    var composeRequest: ComposeRequest?
     var showMemo = false
     var dailyRequest = 0
 
@@ -31,7 +33,11 @@ final class Router {
         guard url.scheme == "hush" else { return }
         switch url.host() {
         case "new": if let s = AppSection(rawValue: url.lastPathComponent) { startNew(in: s) }
-        case "open": if let s = AppSection(rawValue: url.lastPathComponent) { go(s) }
+        case "open":
+            if let s = AppSection(rawValue: url.lastPathComponent) {
+                if s == .mail, url.query?.contains("review=1") == true { UserDefaults.standard.set("review", forKey: "mailLastMailbox") }
+                go(s)
+            }
         case "daily": go(.notes); dailyRequest += 1
         case "focus": showFocus = true
         case "memo": showMemo = true

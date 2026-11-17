@@ -40,6 +40,7 @@ struct DrawerView: View {
     @Query private var trashTasks: [TaskItem]
     @Query private var trashOther: [JournalEntry]
     @State private var showTrash = false
+    @Query(filter: #Predicate<FeedArticle> { !$0.isRead }) private var unreadArticles: [FeedArticle]
     private var habits: [Habit] { habitsStored.live(settings.spaceFilter) }
     @State private var dragOffset: CGFloat = 0
 
@@ -72,6 +73,8 @@ struct DrawerView: View {
             return events.filter { $0.end >= start }.count
         case .contacts: return contacts.count
         case .bookmarks: return bookmarks.count
+        case .mail: return MailEngine.shared.hasAccounts ? MailEngine.shared.totalUnreadInbox : nil
+        case .feeds: return unreadArticles.isEmpty ? nil : unreadArticles.count
         }
     }
 
@@ -151,7 +154,7 @@ struct DrawerView: View {
                     Button { lock.lockNow() } label: { Image(systemName: "lock") }.accessibilityLabel("Lock now")
                 }
                 Spacer()
-                Label("Stored only on this iPhone", systemImage: "checkmark.shield")
+                Label(OnlineCenter.isActive ? "Online only where you chose" : "Stored only on this device", systemImage: "checkmark.shield")
                     .font(.hush(.caption)).foregroundStyle(.secondary)
             }
             .font(.hush(.title3))

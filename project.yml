@@ -6,9 +6,9 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "2.5.0"
+    MARKETING_VERSION: "2.6.0"
     CURRENT_PROJECT_VERSION: "1"
-    TARGETED_DEVICE_FAMILY: "1"
+    TARGETED_DEVICE_FAMILY: "1,2"
 targets:
   Hush:
     type: application
@@ -27,6 +27,8 @@ targets:
       properties:
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        UIBackgroundModes: [fetch]
+        BGTaskSchedulerPermittedIdentifiers: [com.jacobwingstrom.hush.refresh]
         CFBundleURLTypes:
           - CFBundleURLName: com.jacobwingstrom.hush
             CFBundleURLSchemes: [hush]
@@ -68,7 +70,8 @@ targets:
         INFOPLIST_KEY_NSFaceIDUsageDescription: "Hush uses Face ID to unlock your notes."
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: "Hush shows your iPhone calendars (including Outlook) in its Calendar. Nothing leaves your phone."
         INFOPLIST_KEY_NSCalendarsUsageDescription: "Hush shows your iPhone calendars (including Outlook) in its Calendar. Nothing leaves your phone."
