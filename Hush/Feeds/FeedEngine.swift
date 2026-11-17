@@ -53,13 +53,13 @@ final class FeedEngine {
         var url = Self.normalize(input)
         guard var u = URL(string: url), u.scheme == "https" || u.scheme == "http" else { throw MailError.server("That doesn't look like a web address.") }
         if let existing = feeds.first(where: { $0.urlString == url }) { return existing }
-        var (data, _) = try await fetch(u, etag: "", modified: "")
-        var parsed = data.flatMap(FeedParser.parse)
-        if parsed == nil, let data, let html = String(data: data, encoding: .utf8), let found = FeedParser.discover(inHTML: html, base: u) {
+        let first = try await fetch(u, etag: "", modified: "").0
+        var parsed: ParsedFeed? = first.flatMap { FeedParser.parse($0) }
+        if parsed == nil, let page = first, let html = String(data: page, encoding: .utf8), let found = FeedParser.discover(inHTML: html, base: u) {
             u = found
             url = found.absoluteString
-            (data, _) = try await fetch(u, etag: "", modified: "")
-            parsed = data.flatMap(FeedParser.parse)
+            let second = try await fetch(u, etag: "", modified: "").0
+            parsed = second.flatMap { FeedParser.parse($0) }
         }
         guard let parsed else { throw MailError.server("No RSS or Atom feed was found at that address.") }
         let feed = Feed(url: url)
