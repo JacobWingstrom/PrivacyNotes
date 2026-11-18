@@ -8,7 +8,7 @@ enum FeedSelection: Hashable {
     case feed(UUID)
 }
 
-/// RSS, Atom and Reddit, laid out like Mail.
+/// RSS and Atom feeds, laid out like Mail.
 struct FeedsView: View {
     let title: String
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -81,8 +81,8 @@ private struct FeedsOnboarding: View {
         ScrollView {
             VStack(spacing: 18) {
                 Image(systemName: "dot.radiowaves.up.forward").font(.system(size: 54, weight: .light)).foregroundStyle(.tint).padding(.top, 40)
-                Text("Follow sites and subreddits").font(.hush(.title2).bold())
-                Text("Add any RSS or Atom feed, a subreddit like r/selfhosted, or your private Reddit front page. Hush fetches feeds straight from each site, with no tracking and no account.")
+                Text("Follow the sites you read").font(.hush(.title2).bold())
+                Text("Add any RSS or Atom feed, or paste a website and Hush finds its feed. Hush fetches feeds straight from each site, with no tracking and no account.")
                     .multilineTextAlignment(.center).foregroundStyle(.secondary)
                 Button(action: add) {
                     Label("Add a Feed", systemImage: "plus").font(.hush(.headline)).frame(maxWidth: 320).padding(.vertical, 12)
@@ -373,7 +373,7 @@ struct AddFeedView: View {
         NavigationStack {
             HushForm {
                 Section {
-                    TextField("Site, feed address or r/subreddit", text: $url)
+                    TextField("Website or feed address", text: $url)
                         .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                     TextField("Folder (optional)", text: $folder)
                     let folders = Array(Set(feeds.map(\.folder).filter { !$0.isEmpty })).sorted()
@@ -386,12 +386,9 @@ struct AddFeedView: View {
                     Text("Paste a website and Hush will look for its feed.")
                 }
                 Section {
-                    Label("**A subreddit:** type r/name, e.g. r/selfhosted.", systemImage: "bubble.left.and.text.bubble.right")
-                    Label("**Your subscribed subreddits:** on reddit.com open Preferences → RSS Feeds (reddit.com/prefs/feeds) and copy the “your frontpage” RSS link. It's private to you, so keep it to yourself.", systemImage: "person.crop.circle")
+                    Label("Reddit turned off its RSS feeds on November 13, 2026, so subreddits can't be added here anymore. YouTube channels, blogs, news sites, GitHub releases, Mastodon accounts and podcasts still work.", systemImage: "info.circle")
                 } header: {
                     Text("Reddit")
-                } footer: {
-                    Text("Reddit feeds show posts; comments open in the browser. No Reddit login is needed.")
                 }
                 .font(.hush(.footnote))
             }
@@ -485,7 +482,7 @@ struct FeedSettingsView: View {
                 Text("Move your subscriptions from another reader (Feedly, NetNewsWire, Inoreader…) with an OPML file.")
             }
         }
-        .navigationTitle("Feeds & Reddit")
+        .navigationTitle("Feeds")
         .onAppear {
             exportURL = TempFiles.write(FeedEngine.shared.exportOPML(), name: "Hush Feeds.opml")
         }

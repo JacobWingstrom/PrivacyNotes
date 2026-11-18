@@ -28,7 +28,7 @@ struct OnlineProvider: TimelineProvider {
             updated: .now, unreadMail: 3,
             mail: [.init(title: "Lena", detail: "Dinner on Friday?"), .init(title: "mailbox.org", detail: "Your invoice")],
             reviewCount: 2, review: [.init(title: "Dinner with Lena", detail: "Fri 19:30"), .init(title: "Pay invoice", detail: "Due Nov 30")],
-            unreadArticles: 12, headlines: [.init(title: "Self-hosting a mail server in 2026", detail: "r/selfhosted"), .init(title: "Release notes", detail: "Blog")],
+            unreadArticles: 12, headlines: [.init(title: "Self-hosting a mail server in 2026", detail: "Blog"), .init(title: "Release notes", detail: "Blog")],
             hasMail: true, hasFeeds: true), accent: .blue)
     }
 }
@@ -134,7 +134,7 @@ struct HeadlinesWidget: Widget {
             .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Headlines")
-        .description("The newest unread articles from your feeds and subreddits.")
+        .description("The newest unread articles from your feeds.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
