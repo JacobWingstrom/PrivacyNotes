@@ -34,8 +34,10 @@ services:
     environment:
       HUSH_MAX_BLOB_MB: "512"     # largest single attachment
       # HUSH_TOKEN: "choose-your-own-long-token"   # optional; otherwise one is generated
+      # HUSH_DISKS: "/host"   # optional: also show the host disk in Hush's Server widget (needs the /host volume below)
     volumes:
       - hush-data:/data           # everything Hush stores (all encrypted). Back this up.
+      # - /:/host:ro             # optional, read-only: lets the Server widget show the host disk, OS name and hostname
     restart: unless-stopped
 
 configs:

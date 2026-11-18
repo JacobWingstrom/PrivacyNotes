@@ -61,6 +61,8 @@ struct HomeWidgetView: View {
         case .contacts: ContactsWidgetView(widget: widget)
         case .countdown: CountdownWidgetView(widget: widget)
         case .files: FilesWidgetView(widget: widget)
+        case .server, .containers, .monitor, .weather, .markets, .news, .feeds, .mail, .review, .releases, .dns, .customAPI, .clock:
+            DashboardWidgetView(widget: widget)
         }
     }
 }

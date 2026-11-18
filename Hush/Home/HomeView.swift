@@ -37,6 +37,14 @@ struct HomeView: View {
             .animation(.snappy, value: settings.homeWidgets)
         }
         .background(palette.background)
+        .refreshable { await DashboardStore.shared.refreshAll(settings.homeWidgets) }
+        .task(id: settings.homeWidgets.filter(\.isOnline).map { "\($0.id)\($0.refreshMinutes)" }) {
+            // Online widgets refresh on their own schedule while Home is showing.
+            while !Task.isCancelled {
+                await DashboardStore.shared.refreshDue(settings.homeWidgets)
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
+            }
+        }
         .navigationTitle(title)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -167,7 +175,13 @@ struct HomeView: View {
         change(&settings.homeWidgets[i])
     }
 
-    private func remove(_ w: HomeWidget) { settings.homeWidgets.removeAll { $0.id == w.id } }
+    private func remove(_ w: HomeWidget) {
+        settings.homeWidgets.removeAll { $0.id == w.id }
+        if w.isOnline {
+            DashboardStore.shared.forget(w.id)
+            w.secret = ""
+        }
+    }
 
     private func duplicate(_ w: HomeWidget) {
         guard let i = settings.homeWidgets.firstIndex(of: w) else { return }
@@ -202,7 +216,23 @@ struct WidgetGallery: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(HomeWidgetKind.allCases) { kind in
+                Section {
+                    ForEach(HomeWidgetKind.local) { kind in row(kind) }
+                } header: { ListHeader(title: "From Hush") }
+                Section {
+                    ForEach(HomeWidgetKind.online) { kind in row(kind) }
+                } header: { ListHeader(title: "Homelab & Online") } footer: {
+                    Text("These widgets fetch data straight from your servers or the public service listed, only while Home is open. Tap any of them for details and history charts.")
+                }
+            }
+            .hushList()
+            .navigationTitle("Add Widget")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+        }
+    }
+
+    private func row(_ kind: HomeWidgetKind) -> some View {
                     Button {
                         onPick(kind)
                         dismiss()
@@ -220,13 +250,6 @@ struct WidgetGallery: View {
                         .padding(.vertical, 4)
                     }
                     .hushRow()
-                }
-            }
-            .hushList()
-            .navigationTitle("Add Widget")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
-        }
     }
 }
 
@@ -543,6 +566,8 @@ struct WidgetSettingsView: View {
             }
         case .files:
             Section("Files") { limitStepper(w, range: 1...12) }
+        case .server, .containers, .monitor, .weather, .markets, .news, .feeds, .mail, .review, .releases, .dns, .customAPI, .clock:
+            DashboardSettingsSection(w: w)
         }
     }
 }

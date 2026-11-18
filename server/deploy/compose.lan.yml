@@ -15,6 +15,7 @@ services:
       HUSH_MAX_BLOB_MB: "512"
     volumes:
       - hush-data:/data
+      # - /:/host:ro             # optional, read-only: lets the Server widget show the host disk, OS name and hostname
     restart: unless-stopped
 
 volumes:
