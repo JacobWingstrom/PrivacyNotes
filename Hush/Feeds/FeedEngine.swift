@@ -27,7 +27,9 @@ final class FeedEngine {
 
     // MARK: Adding
 
-    /// "r/swift" or "reddit.com/r/swift" → its RSS feed.
+    static let redditGone = "Reddit turned off its RSS feeds on November 13, 2026, so subreddits can't be followed as feeds anymore. If you run an RSS bridge (such as RSS-Bridge) that still reaches Reddit, add its feed address instead."
+
+    /// "r/swift" or "reddit.com/r/swift" → its RSS feed (in case Reddit brings them back).
     static func normalize(_ input: String) -> String {
         var s = input.trimmed
         if s.lowercased().hasPrefix("feed://") { s = "https://" + s.dropFirst(7) }
@@ -135,6 +137,9 @@ final class FeedEngine {
         let (data, response) = try await session.data(for: req)
         let http = response as? HTTPURLResponse
         if http?.statusCode == 304 { return (nil, http) }
+        if let code = http?.statusCode, !(200..<300).contains(code), (url.host() ?? "").lowercased().hasSuffix("reddit.com") {
+            throw MailError.server(Self.redditGone)
+        }
         if let code = http?.statusCode, !(200..<300).contains(code) {
             throw MailError.server(code == 429 ? "The site asked Hush to slow down. It will try again later." : "The site answered \(code).")
         }

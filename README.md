@@ -31,7 +31,6 @@ Every push to `main` or `hush-notes` rebuilds the app on GitHub Actions and upda
 - **Found in email**: calendar invites, booking data (flights, hotels, restaurants, trains, parcels, invoices), dates in personal mail ("lunch Friday at 12:30", "send it by June 3"), new contacts from signatures and people you email, plus your own rules. Found items show up faded in Calendar, Tasks and Contacts until you confirm them in **To Review**; trusted senders and invites can be added automatically (see **Auto-added**). All scanning happens on the device
 - **mailbox.org calendars, contacts and tasks**: two-way CalDAV/CardDAV sync, including repeating events
 - **Feeds**: RSS/Atom with folders, OPML import/export, clean reader view saved for offline reading, the same three-pane layout as Mail
-- **Reddit**: follow subreddits (type `r/name`) or your private front-page feed from reddit.com/prefs/feeds, no login
 - **Connected calendars**: show Apple Calendar, Outlook, Google and other iPhone calendar accounts live in Calendar and Home; add or edit those events with Apple's editor
 - **Import from iPhone**: Contacts, Reminders (as tasks), calendar events, and .txt/.md (notes), .vcf (contacts) and .ics (events) files
 - **Customization**: sidebar order, names and visibility, start screen, Home blocks, 4 themes, 12 accents plus custom, 4 fonts, 6 text sizes, compact lists, 6 app icons, week start, reminder defaults
