@@ -173,7 +173,7 @@ struct OnlineSettingsView: View {
             }
             Section {
                 NavigationLink { ScanSettingsView() } label: { Label("Finding Items in Email", systemImage: "sparkle.magnifyingglass") }
-                NavigationLink { FeedSettingsView() } label: { Label("Feeds", systemImage: "dot.radiowaves.up.forward") }
+                NavigationLink { FeedSettingsView() } label: { Label("Feeds & Reddit", systemImage: "dot.radiowaves.up.forward") }
             }
             Section {
                 Toggle("Check in the Background", isOn: $background)

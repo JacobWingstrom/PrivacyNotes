@@ -99,7 +99,7 @@ enum HomeWidgetKind: String, Codable, CaseIterable, Identifiable {
         case .weather: "Current conditions, hourly and 7-day forecast (Open-Meteo, no account)."
         case .markets: "Stocks, ETFs and crypto with sparklines and charts (Yahoo Finance)."
         case .news: "Top stories from Hacker News or Lobsters."
-        case .feeds: "Newest unread articles from your feeds."
+        case .feeds: "Newest unread posts from your feeds and subreddits."
         case .mail: "Unread email in your inbox."
         case .review: "Events, tasks and contacts found in email, waiting for you."
         case .releases: "Latest releases of GitHub projects you follow."

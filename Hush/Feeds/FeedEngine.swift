@@ -27,32 +27,19 @@ final class FeedEngine {
 
     // MARK: Adding
 
-    static let redditGone = "Reddit turned off its RSS feeds on November 13, 2026, so subreddits can't be followed as feeds anymore. If you run an RSS bridge (such as RSS-Bridge) that still reaches Reddit, add its feed address instead."
-
-    /// "r/swift" or "reddit.com/r/swift" → its RSS feed (in case Reddit brings them back).
+    /// Websites and feed links; subreddits ("r/name", reddit.com links) become "reddit:name?sort=hot".
     static func normalize(_ input: String) -> String {
         var s = input.trimmed
+        if let spec = RedditFeedSpec.parse(s) { return spec.stored }
         if s.lowercased().hasPrefix("feed://") { s = "https://" + s.dropFirst(7) }
-        if s.range(of: "^/?r/[A-Za-z0-9_+]+/?$", options: .regularExpression) != nil {
-            let name = s.split(separator: "/").last.map(String.init) ?? s
-            return "https://www.reddit.com/r/\(name)/.rss"
-        }
         if !s.contains("://") { s = "https://" + s }
-        if let u = URL(string: s), let host = u.host()?.lowercased(), host.hasSuffix("reddit.com") {
-            // Private front-page links (with feed= and user=) are used as-is.
-            if u.query?.contains("feed=") == true { return s }
-            if u.path.hasPrefix("/r/") || u.path.hasPrefix("/user/") || u.path.hasPrefix("/u/") {
-                var path = u.path
-                if !path.hasSuffix(".rss") { path = (path.hasSuffix("/") ? path : path + "/") + ".rss" }
-                return "https://www.reddit.com" + path
-            }
-        }
         return s
     }
 
     @discardableResult
     func add(_ input: String, folder: String) async throws -> Feed {
         var url = Self.normalize(input)
+        if let spec = RedditFeedSpec(url) { return try await addReddit(spec, folder: folder) }
         guard var u = URL(string: url), u.scheme == "https" || u.scheme == "http" else { throw MailError.server("That doesn't look like a web address.") }
         if let existing = feeds.first(where: { $0.urlString == url }) { return existing }
         let first = try await fetch(u, etag: "", modified: "").0
@@ -68,13 +55,37 @@ final class FeedEngine {
         feed.title = parsed.title
         feed.siteURL = parsed.siteURL
         feed.folder = folder.trimmed
-        feed.kindRaw = (u.host() ?? "").contains("reddit.com") ? "reddit" : "rss"
+        feed.kindRaw = "rss"
         feed.sortIndex = (feeds.map(\.sortIndex).max() ?? 0) + 1
         context.insert(feed)
         store(parsed, in: feed)
         feed.lastFetched = Date()
         try? context.save()
         return feed
+    }
+
+    private func addReddit(_ spec: RedditFeedSpec, folder: String) async throws -> Feed {
+        if let existing = feeds.first(where: { $0.urlString == spec.stored }) { return existing }
+        let parsed = try await RedditSource.fetch(spec)
+        let feed = Feed(url: spec.stored)
+        feed.title = spec.title
+        feed.siteURL = spec.siteURL
+        feed.folder = folder.trimmed.isEmpty ? "Reddit" : folder.trimmed
+        feed.kindRaw = "reddit"
+        feed.sortIndex = (feeds.map(\.sortIndex).max() ?? 0) + 1
+        context.insert(feed)
+        store(parsed, in: feed)
+        feed.lastFetched = Date()
+        try? context.save()
+        return feed
+    }
+
+    /// Changes a subreddit's sort (hot, new, top, rising) and reloads it.
+    func setRedditSort(_ feed: Feed, spec: RedditFeedSpec) async {
+        feed.urlString = spec.stored
+        feed.title = feed.title.isEmpty ? spec.title : feed.title
+        try? context.save()
+        await refresh(feed.id)
     }
 
     func remove(_ feed: Feed) {
@@ -107,8 +118,26 @@ final class FeedEngine {
     }
 
     func refresh(_ id: UUID) async {
-        guard let feed = (try? context.fetch(FetchDescriptor<Feed>(predicate: #Predicate { $0.id == id })))?.first,
-              let url = URL(string: feed.urlString) else { return }
+        guard let feed = (try? context.fetch(FetchDescriptor<Feed>(predicate: #Predicate { $0.id == id })))?.first else { return }
+        // Old Reddit RSS feeds (Reddit ended RSS in November 2026) move to Reddit's JSON listings.
+        if feed.kindRaw == "reddit" || feed.urlString.contains("reddit.com"), RedditFeedSpec(feed.urlString) == nil,
+           let spec = RedditFeedSpec.parse(feed.urlString) {
+            feed.urlString = spec.stored
+            feed.kindRaw = "reddit"
+        }
+        if let spec = RedditFeedSpec(feed.urlString) {
+            do {
+                store(try await RedditSource.fetch(spec), in: feed)
+                feed.lastFetched = Date()
+                feed.errorText = ""
+                errors[id] = nil
+            } catch {
+                feed.errorText = error.localizedDescription
+                errors[id] = error.localizedDescription
+            }
+            return
+        }
+        guard let url = URL(string: feed.urlString) else { return }
         do {
             let (data, response) = try await fetch(url, etag: feed.etag, modified: feed.lastModified)
             if let response {
@@ -137,9 +166,6 @@ final class FeedEngine {
         let (data, response) = try await session.data(for: req)
         let http = response as? HTTPURLResponse
         if http?.statusCode == 304 { return (nil, http) }
-        if let code = http?.statusCode, !(200..<300).contains(code), (url.host() ?? "").lowercased().hasSuffix("reddit.com") {
-            throw MailError.server(Self.redditGone)
-        }
         if let code = http?.statusCode, !(200..<300).contains(code) {
             throw MailError.server(code == 429 ? "The site asked Hush to slow down. It will try again later." : "The site answered \(code).")
         }
@@ -208,11 +234,11 @@ final class FeedEngine {
         let outlines = OPML.parse(data)
         var added = 0
         let known = Set(feeds.map(\.urlString))
-        for o in outlines where !known.contains(o.url) {
-            let f = Feed(url: o.url)
+        for o in outlines where !known.contains(Self.normalize(o.url)) {
+            let f = Feed(url: Self.normalize(o.url))
             f.title = o.title
             f.folder = o.folder
-            f.kindRaw = o.url.contains("reddit.com") ? "reddit" : "rss"
+            f.kindRaw = f.urlString.hasPrefix("reddit:") ? "reddit" : "rss"
             f.sortIndex = added
             context.insert(f)
             added += 1
@@ -223,7 +249,7 @@ final class FeedEngine {
     }
 
     func exportOPML() -> Data {
-        OPML.render(feeds.map { OPML.Outline(title: $0.displayTitle, url: $0.urlString, folder: $0.folder) })
+        OPML.render(feeds.map { OPML.Outline(title: $0.displayTitle, url: RedditFeedSpec($0.urlString)?.siteURL ?? $0.urlString, folder: $0.folder) })
     }
 }
 
