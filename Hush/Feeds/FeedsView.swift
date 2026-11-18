@@ -51,7 +51,7 @@ struct FeedsView: View {
                                 showSources = false
                                 adding = true
                             }
-                            .navigationTitle("Feeds")
+                            .navigationTitle("Feeds & Reddit")
                             .navigationBarTitleDisplayMode(.inline)
                             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showSources = false } } }
                         }
@@ -81,8 +81,8 @@ private struct FeedsOnboarding: View {
         ScrollView {
             VStack(spacing: 18) {
                 Image(systemName: "dot.radiowaves.up.forward").font(.system(size: 54, weight: .light)).foregroundStyle(.tint).padding(.top, 40)
-                Text("Follow the sites you read").font(.hush(.title2).bold())
-                Text("Add any RSS or Atom feed, or paste a website and Hush finds its feed. Hush fetches feeds straight from each site, with no tracking and no account.")
+                Text("Follow sites and subreddits").font(.hush(.title2).bold())
+                Text("Add any RSS or Atom feed, a website, or a subreddit like r/selfhosted. Hush fetches feeds straight from each site, with no tracking and no account.")
                     .multilineTextAlignment(.center).foregroundStyle(.secondary)
                 Button(action: add) {
                     Label("Add a Feed", systemImage: "plus").font(.hush(.headline)).frame(maxWidth: 320).padding(.vertical, 12)
@@ -196,6 +196,7 @@ struct ArticleListView: View {
 
     var body: some View {
         let names = Dictionary(feeds.map { ($0.id, $0.displayTitle) }, uniquingKeysWith: { a, _ in a })
+        let imagesOn = Set(feeds.filter(\.loadImages).map(\.id))
         let shown = search.isEmpty ? Array(articles.prefix(500)) : articles.filter {
             $0.title.localizedCaseInsensitiveContains(search) || $0.author.localizedCaseInsensitiveContains(search)
         }
@@ -216,9 +217,9 @@ struct ArticleListView: View {
             ForEach(shown) { a in
                 Group {
                     if compact {
-                        NavigationLink { ArticleReaderView(article: a) } label: { ArticleRow(article: a, feedName: names[a.feedID] ?? "") }
+                        NavigationLink { ArticleReaderView(article: a) } label: { ArticleRow(article: a, feedName: names[a.feedID] ?? "", showImage: imagesOn.contains(a.feedID)) }
                     } else {
-                        Button { selected = a } label: { ArticleRow(article: a, feedName: names[a.feedID] ?? "").contentShape(Rectangle()) }
+                        Button { selected = a } label: { ArticleRow(article: a, feedName: names[a.feedID] ?? "", showImage: imagesOn.contains(a.feedID)).contentShape(Rectangle()) }
                             .buttonStyle(.plain)
                             .listRowBackground(selected?.id == a.id ? Color.accentColor.opacity(0.18) : Color.clear)
                     }
@@ -245,6 +246,7 @@ struct ArticleListView: View {
 struct ArticleRow: View {
     let article: FeedArticle
     let feedName: String
+    var showImage = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -265,6 +267,12 @@ struct ArticleRow: View {
                 .font(.hush(.caption))
                 .foregroundStyle(.secondary)
             }
+            if showImage, let url = URL(string: article.imageURL), url.scheme == "https" {
+                AsyncImage(url: url) { img in img.resizable().scaledToFill() } placeholder: { Color.secondary.opacity(0.15) }
+                    .frame(width: 64, height: 64)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .accessibilityHidden(true)
+            }
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
@@ -281,6 +289,8 @@ struct ArticleReaderView: View {
     @State private var loadImages = false
     @State private var saving = false
     @State private var error: String?
+    @State private var commentsHTML = ""
+    @State private var loadingComments = false
 
     private var feed: Feed? { feeds.first { $0.id == article.feedID } }
 
@@ -308,6 +318,12 @@ struct ArticleReaderView: View {
                             ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }
                         }
                     }
+                    if feed?.isReddit == true {
+                        Button { Task { await loadComments() } } label: {
+                            if loadingComments { ProgressView() } else { Image(systemName: commentsHTML.isEmpty ? "text.bubble" : "text.bubble.fill") }
+                        }
+                        .accessibilityLabel("Load top comments")
+                    }
                     Button { saveBookmark() } label: { Image(systemName: "bookmark") }.accessibilityLabel("Save as bookmark")
                     Spacer()
                     Button { engine.markRead([article], false) } label: { Image(systemName: "circle") }.accessibilityLabel("Mark unread")
@@ -329,7 +345,7 @@ struct ArticleReaderView: View {
                 .padding(.horizontal, 14).padding(.vertical, 8)
                 .background(palette.surface)
             }
-            SafeHTMLView(html: article.bodyHTML.isEmpty ? "<p><em>No text in this feed item. Open it in the browser or tap the reader button.</em></p>" : article.bodyHTML,
+            SafeHTMLView(html: (article.bodyHTML.isEmpty ? "<p><em>No text in this feed item. Open it in the browser or tap the reader button.</em></p>" : article.bodyHTML) + commentsHTML,
                          allowRemote: loadImages || feed?.loadImages == true, themed: true,
                          textHex: (palette.text ?? (palette.isDark ? .white : .black)).hexString,
                          backgroundHex: palette.background.hexString, accentHex: settings.accentHex) { url in link = url }
@@ -343,7 +359,19 @@ struct ArticleReaderView: View {
         } message: { Text(error ?? "") }
     }
 
+    private func loadComments() async {
+        guard let path = URL(string: article.link)?.path, !path.isEmpty else { return }
+        loadingComments = true
+        defer { loadingComments = false }
+        do {
+            commentsHTML = RedditSource.commentsHTML(try await RedditSource.comments(permalink: path))
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
     private func save() async {
+        if feed?.isReddit == true { await loadComments(); return }
         guard article.savedHTML.isEmpty else { return }
         saving = true
         defer { saving = false }
@@ -373,7 +401,7 @@ struct AddFeedView: View {
         NavigationStack {
             HushForm {
                 Section {
-                    TextField("Website or feed address", text: $url)
+                    TextField("Website, feed address or r/subreddit", text: $url)
                         .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                     TextField("Folder (optional)", text: $folder)
                     let folders = Array(Set(feeds.map(\.folder).filter { !$0.isEmpty })).sorted()
@@ -386,9 +414,12 @@ struct AddFeedView: View {
                     Text("Paste a website and Hush will look for its feed.")
                 }
                 Section {
-                    Label("Reddit turned off its RSS feeds on November 13, 2026, so subreddits can't be added here anymore. YouTube channels, blogs, news sites, GitHub releases, Mastodon accounts and podcasts still work.", systemImage: "info.circle")
+                    Label("**A subreddit:** type r/name, e.g. r/selfhosted. Join several with +, e.g. r/selfhosted+homelab.", systemImage: "bubble.left.and.text.bubble.right")
+                    Label("Change hot, new, top or rising later by long-pressing the subreddit in the sidebar → Edit.", systemImage: "arrow.up.arrow.down")
                 } header: {
                     Text("Reddit")
+                } footer: {
+                    Text("Reddit ended RSS feeds, so Hush reads subreddits through Reddit's own listings, like Glance and Dynacat do. If Reddit starts blocking that, add your Reddit app's ID and secret in Settings → Mail, Calendars & Feeds → Feeds.")
                 }
                 .font(.hush(.footnote))
             }
@@ -423,6 +454,7 @@ struct AddFeedView: View {
 struct EditFeedView: View {
     @Bindable var feed: Feed
     @Environment(\.dismiss) private var dismiss
+    @State private var startURL = ""
 
     var body: some View {
         NavigationStack {
@@ -430,9 +462,31 @@ struct EditFeedView: View {
                 Section {
                     TextField("Title", text: $feed.title)
                     TextField("Folder", text: $feed.folder)
-                    Toggle("Always Load Images", isOn: $feed.loadImages)
+                    Toggle(feed.isReddit ? "Show Thumbnails & Images" : "Always Load Images", isOn: $feed.loadImages)
                 } footer: {
                     Text("Images are fetched from the site (and can be used to track that you opened the article). Off by default.")
+                }
+                if let spec = RedditFeedSpec(feed.urlString) {
+                    Section {
+                        TextField("Subreddits", text: Binding(get: { spec.subreddit }, set: { v in
+                            let clean = v.replacingOccurrences(of: "r/", with: "").replacingOccurrences(of: " ", with: "")
+                            if !clean.isEmpty { feed.urlString = RedditFeedSpec(subreddit: clean, sort: spec.sort, period: spec.period).stored }
+                        }))
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        Picker("Sort", selection: Binding(get: { spec.sort }, set: { v in
+                            feed.urlString = RedditFeedSpec(subreddit: spec.subreddit, sort: v, period: spec.period).stored
+                        })) {
+                            Text("Hot").tag("hot"); Text("New").tag("new"); Text("Top").tag("top"); Text("Rising").tag("rising")
+                        }
+                        if spec.sort == "top" {
+                            Picker("Top Of", selection: Binding(get: { spec.period }, set: { v in
+                                feed.urlString = RedditFeedSpec(subreddit: spec.subreddit, sort: spec.sort, period: v).stored
+                            })) {
+                                Text("Past Hour").tag("hour"); Text("Today").tag("day"); Text("This Week").tag("week")
+                                Text("This Month").tag("month"); Text("This Year").tag("year"); Text("All Time").tag("all")
+                            }
+                        }
+                    } header: { Text("Reddit") } footer: { Text("Join several subreddits with +, e.g. selfhosted+homelab.") }
                 }
                 Section {
                     LabeledContent("Address", value: feed.urlString).font(.hush(.footnote))
@@ -442,7 +496,53 @@ struct EditFeedView: View {
             }
             .navigationTitle("Feed")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { try? Storage.shared.mainContext.save(); dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        try? Storage.shared.mainContext.save()
+                        if feed.urlString != startURL {
+                            let id = feed.id
+                            Task { await FeedEngine.shared.refresh(id) }
+                        }
+                        dismiss()
+                    }
+                }
+            }
+            .onAppear { if startURL.isEmpty { startURL = feed.urlString } }
+        }
+    }
+}
+
+/// Optional Reddit app login and proxy, like Glance's app-auth and request-url-template.
+struct RedditSettingsSection: View {
+    @AppStorage(RedditSource.clientIDKey) private var clientID = ""
+    @AppStorage(RedditSource.templateKey) private var template = ""
+    @AppStorage(RedditSource.commentsHostKey) private var commentsHost = "www.reddit.com"
+    @AppStorage(RedditSource.nsfwKey) private var nsfw = false
+    @AppStorage(RedditSource.stickiedKey) private var stickied = false
+    @State private var secret = RedditSource.secret
+
+    var body: some View {
+        Section {
+            Picker("Open Posts On", selection: $commentsHost) {
+                Text("reddit.com").tag("www.reddit.com")
+                Text("old.reddit.com").tag("old.reddit.com")
+            }
+            Toggle("Show Pinned Posts", isOn: $stickied)
+            Toggle("Show NSFW Posts", isOn: $nsfw)
+        } header: { Text("Reddit") }
+        Section {
+            TextField("Client ID", text: $clientID).textInputAutocapitalization(.never).autocorrectionDisabled()
+            SecureField("Secret", text: $secret)
+                .textInputAutocapitalization(.never).autocorrectionDisabled()
+                .onChange(of: secret) { _, v in RedditSource.secret = v.trimmed }
+        } header: { Text("Reddit App (optional)") } footer: {
+            Text("If Reddit blocks plain requests, sign in as your own app, like Glance's app-auth: on reddit.com/prefs/apps create a “script” app and paste its ID (under the name) and secret. Only read-only listings are requested.")
+        }
+        Section {
+            TextField("https://your.proxy/?url={REQUEST-URL}", text: $template).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+        } header: { Text("Request Template (optional)") } footer: {
+            Text("Sends Reddit requests through your own proxy instead, like Glance's request-url-template. {REQUEST-URL} becomes the Reddit address (e.g. https://www.reddit.com/r/selfhosted/hot.json), {PATH} just the path. The proxy must return Reddit's JSON.")
         }
     }
 }
@@ -473,6 +573,7 @@ struct FeedSettingsView: View {
             } header: {
                 Text("Feeds")
             }
+            RedditSettingsSection()
             Section {
                 Button { importing = true } label: { Label("Import OPML…", systemImage: "square.and.arrow.down") }
                 if let exportURL {

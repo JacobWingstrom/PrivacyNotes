@@ -134,7 +134,7 @@ struct HeadlinesWidget: Widget {
             .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Headlines")
-        .description("The newest unread articles from your feeds.")
+        .description("The newest unread posts from your feeds and subreddits.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
